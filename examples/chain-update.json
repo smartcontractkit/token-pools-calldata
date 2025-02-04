@@ -1,0 +1,40 @@
+[
+  [],
+  [
+    {
+      "remoteChainSelector": "12532609583862916517",
+      "remotePoolAddresses": [
+        "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+        "0x1234567890123456789012345678901234567890"
+      ],
+      "remoteTokenAddress": "0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05",
+      "outboundRateLimiterConfig": {
+        "isEnabled": true,
+        "capacity": "1000000",
+        "rate": "100000"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": true,
+        "capacity": "1000000",
+        "rate": "100000"
+      },
+      "remoteChainType": "evm"
+    },
+    {
+      "remoteChainSelector": "3478487238524512106",
+      "remotePoolAddresses": ["0xa469F39796Cad956bE2E51117693880dB3E6438d"],
+      "remoteTokenAddress": "0x1234567890123456789012345678901234567890",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "remoteChainType": "evm"
+    }
+  ]
+]

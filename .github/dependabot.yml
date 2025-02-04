@@ -1,0 +1,100 @@
+version: 2
+
+updates:
+  # Enable version updates for npm (works with pnpm)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    
+    # Group dependency updates by type
+    groups:
+      # Group all development dependencies together
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      # Group TypeScript and ESLint ecosystem together
+      typescript-eslint:
+        patterns:
+          - "typescript"
+          - "@typescript-eslint/*"
+          - "eslint*"
+          - "ts-*"
+      
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "jest"
+          - "@jest/*"
+          - "@types/jest"
+          - "ts-jest"
+      
+      # Group blockchain/crypto dependencies
+      blockchain:
+        patterns:
+          - "ethers"
+          - "@solana/*"
+          - "@safe-global/*"
+    
+    # Open pull requests limit
+    open-pull-requests-limit: 10
+    
+    # Assignees and reviewers (based on CODEOWNERS)
+    assignees:
+      - "aelmanaa"
+    
+    # Commit message prefix
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    
+    # Labels for PRs
+    labels:
+      - "dependencies"
+      - "automated"
+    
+    # Allow both direct and indirect updates
+    versioning-strategy: auto
+    
+    # Rebase strategy for conflicts
+    rebase-strategy: "auto"
+    
+    # Ignore specific dependencies or versions if needed
+    ignore:
+      # Ignore major version updates for stable packages
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    
+    # Pull request branch name prefix
+    pull-request-branch-name:
+      separator: "/"
+
+  # GitHub Actions workflow dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    
+    labels:
+      - "ci"
+      - "automated"
+    
+    assignees:
+      - "aelmanaa"
+    
+    open-pull-requests-limit: 5
+

@@ -1,0 +1,28 @@
+{
+  "name": "Cross-Chain Test Token",
+  "symbol": "XCTEST",
+  "decimals": 18,
+  "maxSupply": "1000000000000000000000000",
+  "preMint": "100000000000000000000000",
+  "remoteTokenPools": [
+    {
+      "remoteChainSelector": "16015286601757825753",
+      "remotePoolAddress": "0x0000000000000000000000000000000000000000",
+      "remotePoolInitCode": "0x",
+      "remoteTokenAddress": "0x0000000000000000000000000000000000000000",
+      "remoteTokenInitCode": "0x",
+      "poolType": "BurnMintTokenPool",
+      "remoteChainConfig": {
+        "remotePoolFactory": "0x0000000000000000000000000000000000000000",
+        "remoteRouter": "0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59",
+        "remoteRMNProxy": "0xba3f6251de62dED61Ff98590cB2fDf6871FbB991",
+        "remoteTokenDecimals": 18
+      },
+      "rateLimiterConfig": {
+        "isEnabled": true,
+        "capacity": "100000000000000000000000",
+        "rate": "1000000000000000000000"
+      }
+    }
+  ]
+}

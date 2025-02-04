@@ -1,0 +1,13 @@
+{
+  "remoteChainSelector": "3478487238524512106",
+  "outboundConfig": {
+    "isEnabled": true,
+    "capacity": "1000000000000000000000",
+    "rate": "100000000000000000000"
+  },
+  "inboundConfig": {
+    "isEnabled": true,
+    "capacity": "1000000000000000000000",
+    "rate": "100000000000000000000"
+  }
+}
