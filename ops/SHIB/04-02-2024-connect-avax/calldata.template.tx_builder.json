@@ -1,0 +1,25 @@
+{
+    "version": "1.0",
+    "chainId": "",
+    "createdAt": 1738690463755,
+    "meta": {
+        "name": "Transactions Batch",
+        "description": "",
+        "txBuilderVersion": "1.18.0",
+        "createdFromSafeAddress": "--SAFE--",
+        "createdFromOwnerAddress": ""
+    },
+    "transactions": [
+        {
+            "to": "--TOKENPOOL--",
+            "value": "0",
+            "data": "--CALLDATA--",
+            "contractMethod": {
+                "inputs": [],
+                "name": "acceptOwnership",
+                "payable": false
+            },
+            "contractInputsValues": null
+        }
+    ]
+}

@@ -5,7 +5,8 @@ A tool to generate calldata for TokenPool contract interactions, specifically fo
 ## Prerequisites
 
 - Node.js >= 20.0.0
-- pnpm
+- pnpm 
+`npm install pnpm`
 
 ## Installation
 
