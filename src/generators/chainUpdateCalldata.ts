@@ -89,6 +89,7 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
  * @param safeAddress - The address of the Safe that will execute the transaction
  * @param ownerAddress - The address of the Safe owner creating the transaction
  * @param calldata - The encoded function calldata
+ * @param tokenPoolAddress - The address of the TokenPool contract
  * @returns The Safe Transaction Builder JSON
  */
 export function createSafeTransactionJSON(
@@ -96,6 +97,7 @@ export function createSafeTransactionJSON(
   safeAddress: string,
   ownerAddress: string,
   calldata: string,
+  tokenPoolAddress: string = '0xYOUR_POOL_ADDRESS',
 ): SafeTransactionBuilderJSON {
   const poolInterface = TokenPool__factory.createInterface();
   const fragment = poolInterface.getFunction('applyChainUpdates');
@@ -108,7 +110,7 @@ export function createSafeTransactionJSON(
   }));
 
   const transaction: SafeTransactionBuilderTransaction = {
-    to: '0xYOUR_POOL_ADDRESS', // Placeholder for TokenPool address
+    to: tokenPoolAddress,
     value: '0',
     data: calldata,
     contractMethod: {

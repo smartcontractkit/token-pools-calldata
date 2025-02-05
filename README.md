@@ -36,13 +36,13 @@ pnpm install
 
 ```bash
 # Generate raw calldata
-pnpm start generate-chain-update -i examples/chain-update.json
+pnpm start generate-chain-update --input examples/chain-update.json
 
 # Generate Safe Transaction Builder JSON
-pnpm start generate-chain-update -i examples/chain-update.json -f safe-json -c 11155111 -s 0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f -w 0x0000000000000000000000000000000000000000 -o output.json
+pnpm start generate-chain-update --input examples/chain-update.json --format safe-json --chain-id 11155111 --safe 0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f --owner 0x0000000000000000000000000000000000000000 --token-pool 0x1234567890123456789012345678901234567890 --output output.json
 
 # Save output to a file
-pnpm start generate-chain-update -i examples/chain-update.json -o output.txt
+pnpm start generate-chain-update --input examples/chain-update.json --output output.txt
 
 # Show help
 pnpm start generate-chain-update --help
@@ -50,12 +50,13 @@ pnpm start generate-chain-update --help
 
 ### Command Options
 
-- `-i, --input <path>`: Path to input JSON file (required)
-- `-o, --output <path>`: Path to output file (optional, defaults to stdout)
-- `-f, --format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
-- `-s, --safe <address>`: Safe address for safe-json format (optional, defaults to "--SAFE--")
-- `-w, --owner <address>`: Owner address for safe-json format (optional, defaults to "--OWNER--")
-- `-c, --chain-id <id>`: Chain ID for safe-json format (required for safe-json)
+- `--input <path>`: Path to input JSON file (required)
+- `--output <path>`: Path to output file (optional, defaults to stdout)
+- `--format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
+- `--safe <address>`: Safe address for safe-json format (optional, defaults to "--SAFE--")
+- `--owner <address>`: Owner address for safe-json format (optional, defaults to "--OWNER--")
+- `--chain-id <id>`: Chain ID for safe-json format (required for safe-json)
+- `--token-pool <address>`: Token Pool contract address (optional, defaults to "0xYOUR_POOL_ADDRESS")
 
 ### Input Format
 

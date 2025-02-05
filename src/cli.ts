@@ -15,6 +15,7 @@ interface ChainUpdateOptions {
   owner?: string;
   chainId?: string;
   format?: 'calldata' | 'safe-json';
+  tokenPool?: string;
 }
 
 function createProgram(): Command {
@@ -41,6 +42,7 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
         options.safe || '--SAFE--', // Use placeholder if not provided
         options.owner || '--OWNER--', // Use placeholder if not provided
         calldata,
+        options.tokenPool || '0xYOUR_POOL_ADDRESS', // Use placeholder if not provided
       );
 
       if (options.output) {
@@ -92,6 +94,7 @@ program
   .option('-s, --safe <address>', 'Safe address (for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (for safe-json format)')
+  .option('-p, --token-pool <address>', 'Token Pool contract address (optional, defaults to placeholder)')
   .action(handleChainUpdate);
 
 // Parse command line arguments
