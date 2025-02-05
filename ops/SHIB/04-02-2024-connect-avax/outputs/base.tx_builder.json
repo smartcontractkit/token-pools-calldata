@@ -31,6 +31,31 @@
         "payable": false
       },
       "contractInputsValues": null
-    }
+    },
+    {
+        "to": "0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8",
+        "value": "0",
+        "data": null,
+        "contractMethod": {
+          "inputs": [
+            {
+              "internalType": "uint64",
+              "name": "remoteChainSelector",
+              "type": "uint64"
+            },
+            {
+              "internalType": "bytes",
+              "name": "remotePoolAddress",
+              "type": "bytes"
+            }
+          ],
+          "name": "addRemotePool",
+          "payable": false
+        },
+        "contractInputsValues": {
+          "remoteChainSelector": "6433500567565415381",
+          "remotePoolAddress": "0x0000000000000000000000006f6F5645B86b1fD3c4C015822a0E672132D4e2F8"
+        }
+      }
   ]
 }

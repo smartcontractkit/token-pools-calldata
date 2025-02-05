@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "chainId": "43114",
+  "createdAt": 1738784020211,
+  "meta": {
+    "name": "Token Pool Chain Updates",
+    "description": "",
+    "txBuilderVersion": "1.18.0",
+    "createdFromSafeAddress": "0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f",
+    "createdFromOwnerAddress": "",
+    "checksum": "0x9e720fd0c8bace9ee9ac950de106fd7d1081311426122e814e5c094c602a4cd6"
+  },
+  "transactions": [
+    {
+      "to": "0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          {
+            "internalType": "uint64",
+            "name": "remoteChainSelector",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes",
+            "name": "remotePoolAddress",
+            "type": "bytes"
+          }
+        ],
+        "name": "addRemotePool",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "remoteChainSelector": "4949039107694359620",
+        "remotePoolAddress": "0x0000000000000000000000006f93AD7963BBdD8C655A0C819B9b79347EE04b70"
+      }
+    },
+    {
+      "to": "0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          {
+            "internalType": "uint64",
+            "name": "remoteChainSelector",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes",
+            "name": "remotePoolAddress",
+            "type": "bytes"
+          }
+        ],
+        "name": "addRemotePool",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "remoteChainSelector": "15971525489660198786",
+        "remotePoolAddress": "0x000000000000000000000000C026ae03C857093979872C665b13dBBA83B55987"
+      }
+    },
+    {
+      "to": "0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          {
+            "internalType": "uint64",
+            "name": "remoteChainSelector",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes",
+            "name": "remotePoolAddress",
+            "type": "bytes"
+          }
+        ],
+        "name": "addRemotePool",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "remoteChainSelector": "11344663589394136015",
+        "remotePoolAddress": "0x0000000000000000000000007f1f90E6b6BAD9fc14ca71224B072541B739beb3"
+      }
+    }
+  ]
+}
