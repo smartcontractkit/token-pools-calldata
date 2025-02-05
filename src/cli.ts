@@ -3,6 +3,7 @@ import { Command, Option } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
 import prettier from 'prettier';
+import { ethers } from 'ethers';
 import {
   generateChainUpdateCalldata,
   createSafeTransactionJSON,
@@ -37,6 +38,17 @@ async function formatJSON(obj: unknown): Promise<string> {
 
 async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
   try {
+    // Validate Ethereum addresses if provided
+    if (options.safe && !ethers.isAddress(options.safe)) {
+      throw new Error(`Invalid Safe address: ${options.safe}`);
+    }
+    if (options.owner && !ethers.isAddress(options.owner)) {
+      throw new Error(`Invalid owner address: ${options.owner}`);
+    }
+    if (options.tokenPool && !ethers.isAddress(options.tokenPool)) {
+      throw new Error(`Invalid Token Pool address: ${options.tokenPool}`);
+    }
+
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
     const calldata = await generateChainUpdateCalldata(inputJson);
