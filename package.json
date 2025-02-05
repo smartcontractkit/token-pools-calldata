@@ -38,6 +38,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@safe-global/types-kit": "^1.0.2",
     "commander": "^11.1.0",
     "ethers": "^6.11.1",
     "winston": "^3.11.0",

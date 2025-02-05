@@ -1,13 +1,20 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
-import { generateChainUpdateCalldata } from './generators/chainUpdateCalldata';
+import {
+  generateChainUpdateCalldata,
+  createSafeTransactionJSON,
+} from './generators/chainUpdateCalldata';
 import logger from './utils/logger';
 
 interface ChainUpdateOptions {
   input: string;
   output?: string;
+  safe?: string;
+  owner?: string;
+  chainId?: string;
+  format?: 'calldata' | 'safe-json';
 }
 
 function createProgram(): Command {
@@ -23,12 +30,35 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
     const inputJson = await fs.readFile(inputPath, 'utf-8');
     const calldata = await generateChainUpdateCalldata(inputJson);
 
-    if (options.output) {
-      const outputPath = path.resolve(options.output);
-      await fs.writeFile(outputPath, calldata);
-      logger.info('Successfully wrote calldata to file', { outputPath });
+    // If format is safe-json, generate Safe Transaction Builder JSON
+    if (options.format === 'safe-json') {
+      if (!options.chainId) {
+        throw new Error('chainId is required for Safe Transaction Builder JSON format');
+      }
+
+      const safeJson = createSafeTransactionJSON(
+        options.chainId,
+        options.safe || '--SAFE--', // Use placeholder if not provided
+        options.owner || '--OWNER--', // Use placeholder if not provided
+        calldata,
+      );
+
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, JSON.stringify(safeJson, null, 2));
+        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
+      } else {
+        console.log(JSON.stringify(safeJson, null, 2));
+      }
     } else {
-      console.log(calldata);
+      // Default format: just output the calldata
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, calldata);
+        logger.info('Successfully wrote calldata to file', { outputPath });
+      } else {
+        console.log(calldata);
+      }
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -54,6 +84,14 @@ program
   .description('Generate calldata for applyChainUpdates function')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices(['calldata', 'safe-json'])
+      .default('calldata')
+  )
+  .option('-s, --safe <address>', 'Safe address (for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (for safe-json format)')
   .action(handleChainUpdate);
 
 // Parse command line arguments

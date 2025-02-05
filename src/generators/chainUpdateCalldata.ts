@@ -3,6 +3,41 @@ import { TokenPool__factory, TokenPool } from '../typechain';
 import { ChainUpdateInput, ChainUpdatesInput, chainUpdatesInputSchema } from '../types/chainUpdate';
 import logger from '../utils/logger';
 
+// Safe Transaction Builder interfaces
+interface SafeTransactionBuilderMethod {
+  inputs: Array<{
+    name: string;
+    type: string;
+    internalType: string;
+  }>;
+  name: string;
+  payable: boolean;
+}
+
+interface SafeTransactionBuilderTransaction {
+  to: string;
+  value: string;
+  data: string;
+  contractMethod: SafeTransactionBuilderMethod;
+  contractInputsValues: Record<string, unknown> | null;
+}
+
+interface SafeTransactionBuilderMeta {
+  name: string;
+  description: string;
+  txBuilderVersion: string;
+  createdFromSafeAddress: string;
+  createdFromOwnerAddress: string;
+}
+
+interface SafeTransactionBuilderJSON {
+  version: string;
+  chainId: string;
+  createdAt: number;
+  meta: SafeTransactionBuilderMeta;
+  transactions: SafeTransactionBuilderTransaction[];
+}
+
 export class ChainUpdateError extends Error {
   constructor(message: string) {
     super(message);
@@ -46,6 +81,57 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
     }
     throw error;
   }
+}
+
+/**
+ * Creates a Safe Transaction Builder JSON for the chain updates
+ * @param chainId - The chain ID where the transaction will be executed
+ * @param safeAddress - The address of the Safe that will execute the transaction
+ * @param ownerAddress - The address of the Safe owner creating the transaction
+ * @param calldata - The encoded function calldata
+ * @returns The Safe Transaction Builder JSON
+ */
+export function createSafeTransactionJSON(
+  chainId: string,
+  safeAddress: string,
+  ownerAddress: string,
+  calldata: string,
+): SafeTransactionBuilderJSON {
+  const poolInterface = TokenPool__factory.createInterface();
+  const fragment = poolInterface.getFunction('applyChainUpdates');
+
+  // Convert function inputs to Safe Transaction Builder format
+  const contractInputs = fragment.inputs.map((input) => ({
+    name: input.name,
+    type: input.type,
+    internalType: input.format('full'),
+  }));
+
+  const transaction: SafeTransactionBuilderTransaction = {
+    to: '0xYOUR_POOL_ADDRESS', // Placeholder for TokenPool address
+    value: '0',
+    data: calldata,
+    contractMethod: {
+      inputs: contractInputs,
+      name: fragment.name,
+      payable: false,
+    },
+    contractInputsValues: null, // We don't need to include the actual values as they're in the calldata
+  };
+
+  return {
+    version: '1.0',
+    chainId,
+    createdAt: Date.now(),
+    meta: {
+      name: 'Token Pool Chain Updates',
+      description: 'Apply chain updates to the Token Pool contract',
+      txBuilderVersion: '1.18.0',
+      createdFromSafeAddress: safeAddress,
+      createdFromOwnerAddress: ownerAddress,
+    },
+    transactions: [transaction],
+  };
 }
 
 /**
