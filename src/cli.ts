@@ -2,6 +2,7 @@
 import { Command, Option } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
+import prettier from 'prettier';
 import {
   generateChainUpdateCalldata,
   createSafeTransactionJSON,
@@ -25,6 +26,15 @@ function createProgram(): Command {
     .version('1.0.0');
 }
 
+// Function to format JSON consistently using project's prettier config
+async function formatJSON(obj: unknown): Promise<string> {
+  const config = await prettier.resolveConfig(process.cwd());
+  return prettier.format(JSON.stringify(obj), {
+    ...config,
+    parser: 'json',
+  });
+}
+
 async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
   try {
     const inputPath = path.resolve(options.input);
@@ -45,18 +55,20 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
         options.tokenPool || '0xYOUR_POOL_ADDRESS', // Use placeholder if not provided
       );
 
+      const formattedJson = await formatJSON(safeJson);
+
       if (options.output) {
         const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, JSON.stringify(safeJson, null, 2));
+        await fs.writeFile(outputPath, formattedJson);
         logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
       } else {
-        console.log(JSON.stringify(safeJson, null, 2));
+        console.log(formattedJson);
       }
     } else {
       // Default format: just output the calldata
       if (options.output) {
         const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, calldata);
+        await fs.writeFile(outputPath, calldata + '\n');
         logger.info('Successfully wrote calldata to file', { outputPath });
       } else {
         console.log(calldata);
