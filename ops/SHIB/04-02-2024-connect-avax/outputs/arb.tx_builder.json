@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "chainId": "--safe",
+  "chainId": "42161",
   "createdAt": 1738764406477,
   "meta": {
     "name": "Token Pool Chain Updates",
