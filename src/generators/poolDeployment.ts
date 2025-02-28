@@ -1,21 +1,15 @@
 import { ethers } from 'ethers';
 import { BYTECODES } from '../constants/bytecodes';
-import {
-  PoolDeploymentParams,
-  poolDeploymentParamsSchema,
-  LockReleaseTokenPoolParams,
-} from '../types/poolDeployment';
+import { PoolDeploymentParams, poolDeploymentParamsSchema } from '../types/poolDeployment';
 import {
   SafeMetadata,
   SafeTransactionDataBase,
   SafeTransactionBuilderJSON,
-  SafeOperationType,
   SAFE_TX_BUILDER_VERSION,
+  SafeOperationType,
 } from '../types/safe';
+import { TokenPoolFactory__factory } from '../typechain';
 import logger from '../utils/logger';
-import { BurnMintTokenPool__factory, LockReleaseTokenPool__factory } from '../typechain';
-import { ZodError } from 'zod';
-import { computeCreate2Address } from '../utils/addressComputer';
 
 export class PoolDeploymentError extends Error {
   constructor(message: string) {
@@ -25,36 +19,29 @@ export class PoolDeploymentError extends Error {
 }
 
 /**
- * Generates a deployment transaction for a token pool
+ * Generates a deployment transaction for pool only using TokenPoolFactory
  * @param inputJson - The input JSON string containing deployment parameters
- * @param deployerAddress - The address of the CreateCall contract
- * @param useCreate2 - Whether to use create2 for deterministic addresses
- * @param salt - The salt to use for create2 (required if useCreate2 is true)
- * @param safeAddress - The address of the Safe that will deploy the contract (required if useCreate2 is true)
+ * @param factoryAddress - The address of the TokenPoolFactory contract
+ * @param tokenAddress - The address of the existing token
+ * @param salt - The salt to use for create2 deployment (required)
  * @returns The Safe transaction data
  */
 export async function generatePoolDeploymentTransaction(
   inputJson: string,
-  deployerAddress: string,
-  useCreate2 = false,
-  salt?: string,
-  safeAddress?: string,
+  factoryAddress: string,
+  tokenAddress: string,
+  salt: string,
 ): Promise<SafeTransactionDataBase> {
-  if (!ethers.isAddress(deployerAddress)) {
-    throw new PoolDeploymentError('Invalid deployer address');
+  if (!ethers.isAddress(factoryAddress)) {
+    throw new PoolDeploymentError('Invalid factory address');
   }
 
-  // Validate create2 requirements upfront
-  if (useCreate2) {
-    if (!salt) {
-      throw new PoolDeploymentError('Salt is required for create2 deployment');
-    }
-    if (!safeAddress) {
-      throw new PoolDeploymentError('Safe address is required for create2 deployment');
-    }
-    if (!ethers.isAddress(safeAddress)) {
-      throw new PoolDeploymentError('Invalid safe address');
-    }
+  if (!ethers.isAddress(tokenAddress)) {
+    throw new PoolDeploymentError('Invalid token address');
+  }
+
+  if (!salt) {
+    throw new PoolDeploymentError('Salt is required for deployment');
   }
 
   let parsedInput: PoolDeploymentParams;
@@ -66,90 +53,46 @@ export async function generatePoolDeploymentTransaction(
       token: parsedInput.poolParams.token,
     });
   } catch (error) {
-    if (error instanceof ZodError) {
-      logger.error('Failed to validate input JSON', {
-        error: error.errors,
-        inputJson,
-      });
+    if (error instanceof Error) {
+      logger.error('Failed to parse or validate input JSON', { error, inputJson });
       throw new PoolDeploymentError(`Invalid input format: ${error.message}`);
     }
-    if (error instanceof SyntaxError) {
-      logger.error('Failed to parse JSON', {
-        error: error.message,
-        inputJson,
-      });
-      throw new PoolDeploymentError(`Invalid JSON: ${error.message}`);
-    }
-    throw error; // Re-throw unexpected errors
+    throw error;
   }
 
   try {
-    const { poolType, poolParams } = parsedInput;
+    // Get remote token pools from input (defaults to empty array if not provided)
+    const remoteTokenPools = parsedInput.remoteTokenPools;
 
-    // Get the appropriate factory and parameters based on pool type
-    const [factory, bytecode, constructorParams] =
-      poolType === 'BurnMintTokenPool'
-        ? [
-            BurnMintTokenPool__factory,
-            BYTECODES.BURN_MINT_TOKEN_POOL,
-            [
-              poolParams.token,
-              poolParams.decimals,
-              poolParams.allowlist,
-              poolParams.owner,
-              poolParams.ccipRouter,
-            ],
-          ]
-        : [
-            LockReleaseTokenPool__factory,
-            BYTECODES.LOCK_RELEASE_TOKEN_POOL,
-            [
-              poolParams.token,
-              poolParams.decimals,
-              poolParams.allowlist,
-              poolParams.owner,
-              (poolParams as LockReleaseTokenPoolParams).acceptLiquidity,
-              poolParams.ccipRouter,
-            ],
-          ];
+    // Get the factory interface
+    const factoryInterface = TokenPoolFactory__factory.createInterface();
 
-    // Encode constructor parameters using the factory
-    const constructorArgs = factory.createInterface().encodeDeploy(constructorParams);
+    // Encode the function call to deployTokenPoolWithExistingToken
+    const data = factoryInterface.encodeFunctionData('deployTokenPoolWithExistingToken', [
+      tokenAddress,
+      parsedInput.poolParams.decimals,
+      remoteTokenPools,
+      parsedInput.poolType === 'BurnMintTokenPool'
+        ? BYTECODES.BURN_MINT_TOKEN_POOL
+        : BYTECODES.LOCK_RELEASE_TOKEN_POOL,
+      ethers.id(salt), // Convert string salt to bytes32
+      parsedInput.poolType === 'BurnMintTokenPool' ? 0 : 1, // PoolType enum
+    ]);
 
-    // Combine bytecode and constructor args using solidityPacked
-    const deploymentData = ethers.solidityPacked(['bytes', 'bytes'], [bytecode, constructorArgs]);
-
-    // For create2, compute and log the expected contract address
-    if (useCreate2) {
-      // We can safely use salt and safeAddress here as we validated them upfront
-      // TypeScript doesn't know that our validation ensures these are defined
-      computeCreate2Address(safeAddress!, deploymentData, salt!);
-    }
-
-    logger.info('Successfully generated pool deployment transaction', {
-      poolType,
-      token: poolParams.token,
-    });
+    logger.info('Successfully generated pool deployment transaction');
 
     return {
-      to: deployerAddress,
+      to: factoryAddress,
       value: '0',
-      data: deploymentData,
-      operation: SafeOperationType.DelegateCall,
+      data,
+      operation: SafeOperationType.Call, // Regular call, not delegatecall
     };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error('Failed to generate deployment transaction', {
-        error: error.message,
-        stack: error.stack,
-      });
+      logger.error('Failed to generate deployment transaction', { error });
       throw new PoolDeploymentError(`Failed to generate deployment transaction: ${error.message}`);
     }
-    // Handle unexpected non-Error objects
-    logger.error('Unexpected error during deployment transaction generation', { error });
-    throw new PoolDeploymentError(
-      'An unexpected error occurred during deployment transaction generation',
-    );
+    throw error;
   }
 }
 
@@ -165,22 +108,19 @@ export function createPoolDeploymentJSON(
   params: PoolDeploymentParams,
   metadata: SafeMetadata,
 ): SafeTransactionBuilderJSON {
-  // Get the appropriate factory based on pool type
-  const factory =
-    params.poolType === 'BurnMintTokenPool'
-      ? BurnMintTokenPool__factory
-      : LockReleaseTokenPool__factory;
+  // Get the factory interface
+  const factoryInterface = TokenPoolFactory__factory.createInterface();
 
-  // Get the constructor fragment from the ABI
-  const methodFragment = factory.createInterface().deploy;
+  // Get the deployTokenPoolWithExistingToken function fragment
+  const methodFragment = factoryInterface.getFunction('deployTokenPoolWithExistingToken');
 
   return {
     version: '1.0',
     chainId: metadata.chainId,
     createdAt: Date.now(),
     meta: {
-      name: `${params.poolType} Deployment`,
-      description: `Deploy ${params.poolType} for token at ${params.poolParams.token}`,
+      name: `Pool Factory Deployment - ${params.poolType}`,
+      description: `Deploy ${params.poolType} for token at ${params.poolParams.token} using factory`,
       txBuilderVersion: SAFE_TX_BUILDER_VERSION,
       createdFromSafeAddress: metadata.safeAddress,
       createdFromOwnerAddress: metadata.ownerAddress,
@@ -197,22 +137,10 @@ export function createPoolDeploymentJSON(
             type: input.type,
             internalType: input.type,
           })),
-          name: 'constructor',
-          payable: !methodFragment.payable,
+          name: methodFragment.name,
+          payable: methodFragment.payable,
         },
-        contractInputsValues: {
-          token: params.poolParams.token,
-          decimals: params.poolParams.decimals.toString(),
-          allowlist: JSON.stringify(params.poolParams.allowlist),
-          owner: params.poolParams.owner,
-          ...(params.poolType === 'LockReleaseTokenPool' && {
-            acceptLiquidity: ('acceptLiquidity' in params.poolParams
-              ? params.poolParams.acceptLiquidity
-              : true
-            ).toString(),
-          }),
-          ccipRouter: params.poolParams.ccipRouter,
-        },
+        contractInputsValues: null, // The data field already contains the encoded function call
       },
     ],
   };

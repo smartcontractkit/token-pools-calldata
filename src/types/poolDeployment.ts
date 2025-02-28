@@ -1,7 +1,11 @@
 import { z } from 'zod';
+import { remoteTokenPoolInfoSchema } from './tokenDeployment';
 
 // Pool type discriminator
 export const poolTypeSchema = z.enum(['BurnMintTokenPool', 'LockReleaseTokenPool']);
+
+// Default pool type
+export const DEFAULT_POOL_TYPE = 'BurnMintTokenPool';
 
 // Common pool parameters
 const basePoolParamsSchema = z.object({
@@ -25,6 +29,7 @@ export const lockReleaseTokenPoolParamsSchema = basePoolParamsSchema.extend({
 export const poolDeploymentParamsSchema = z.object({
   poolType: poolTypeSchema,
   poolParams: z.union([burnMintTokenPoolParamsSchema, lockReleaseTokenPoolParamsSchema]),
+  remoteTokenPools: z.array(remoteTokenPoolInfoSchema).optional().default([]),
 });
 
 export type PoolType = z.infer<typeof poolTypeSchema>;
