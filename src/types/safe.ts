@@ -1,11 +1,26 @@
 /**
+ * Safe Transaction Builder version
+ */
+export const SAFE_TX_BUILDER_VERSION = '1.18.0';
+
+/**
+ * Safe operation type
+ * 0 = Call
+ * 1 = DelegateCall
+ */
+export enum SafeOperationType {
+  Call = 0,
+  DelegateCall = 1,
+}
+
+/**
  * Base Safe transaction data structure
  */
 export interface SafeTransactionDataBase {
   to: string;
   value: string;
   data: string;
-  operation: number; // 0 for Call, 1 for DelegateCall
+  operation: SafeOperationType;
 }
 
 /**
