@@ -15,6 +15,7 @@ import {
 import logger from '../utils/logger';
 import { BurnMintTokenPool__factory, LockReleaseTokenPool__factory } from '../typechain';
 import { ZodError } from 'zod';
+import { computeCreate2Address } from '../utils/addressComputer';
 
 export class PoolDeploymentError extends Error {
   constructor(message: string) {
@@ -27,14 +28,33 @@ export class PoolDeploymentError extends Error {
  * Generates a deployment transaction for a token pool
  * @param inputJson - The input JSON string containing deployment parameters
  * @param deployerAddress - The address of the CreateCall contract
+ * @param useCreate2 - Whether to use create2 for deterministic addresses
+ * @param salt - The salt to use for create2 (required if useCreate2 is true)
+ * @param safeAddress - The address of the Safe that will deploy the contract (required if useCreate2 is true)
  * @returns The Safe transaction data
  */
 export async function generatePoolDeploymentTransaction(
   inputJson: string,
   deployerAddress: string,
+  useCreate2 = false,
+  salt?: string,
+  safeAddress?: string,
 ): Promise<SafeTransactionDataBase> {
   if (!ethers.isAddress(deployerAddress)) {
     throw new PoolDeploymentError('Invalid deployer address');
+  }
+
+  // Validate create2 requirements upfront
+  if (useCreate2) {
+    if (!salt) {
+      throw new PoolDeploymentError('Salt is required for create2 deployment');
+    }
+    if (!safeAddress) {
+      throw new PoolDeploymentError('Safe address is required for create2 deployment');
+    }
+    if (!ethers.isAddress(safeAddress)) {
+      throw new PoolDeploymentError('Invalid safe address');
+    }
   }
 
   let parsedInput: PoolDeploymentParams;
@@ -98,6 +118,13 @@ export async function generatePoolDeploymentTransaction(
 
     // Combine bytecode and constructor args using solidityPacked
     const deploymentData = ethers.solidityPacked(['bytes', 'bytes'], [bytecode, constructorArgs]);
+
+    // For create2, compute and log the expected contract address
+    if (useCreate2) {
+      // We can safely use salt and safeAddress here as we validated them upfront
+      // TypeScript doesn't know that our validation ensures these are defined
+      computeCreate2Address(safeAddress!, deploymentData, salt!);
+    }
 
     logger.info('Successfully generated pool deployment transaction', {
       poolType,

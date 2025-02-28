@@ -160,6 +160,7 @@ async function handleTokenDeployment(options: DeploymentOptions): Promise<void> 
       options.deployer,
       options.useCreate2,
       options.salt,
+      options.safe,
     );
 
     // Parse input JSON for Safe JSON format
@@ -220,10 +221,24 @@ async function handlePoolDeployment(options: DeploymentOptions): Promise<void> {
     if (options.owner && !ethers.isAddress(options.owner)) {
       throw new Error(`Invalid owner address: ${String(options.owner)}`);
     }
+    if (!ethers.isAddress(options.deployer)) {
+      throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
+    }
+
+    // Validate create2 parameters
+    if (options.useCreate2 && !options.salt) {
+      throw new Error('Salt is required when using create2');
+    }
 
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const transaction = await generatePoolDeploymentTransaction(inputJson);
+    const transaction = await generatePoolDeploymentTransaction(
+      inputJson,
+      options.deployer,
+      options.useCreate2,
+      options.salt,
+      options.safe,
+    );
 
     // Parse input JSON for Safe JSON format
     const parsedInput = JSON.parse(inputJson) as PoolDeploymentParams;
@@ -407,6 +422,7 @@ program
   .command('generate-pool-deployment')
   .description('Generate deployment transaction for TokenPool')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .requiredOption('-d, --deployer <address>', 'CreateCall contract address')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')

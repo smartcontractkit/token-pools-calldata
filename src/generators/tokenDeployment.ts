@@ -11,6 +11,7 @@ import {
 import logger from '../utils/logger';
 import { CreateCall__factory, BurnMintERC20__factory } from '../typechain';
 import { ZodError } from 'zod';
+import { computeCreate2Address } from '../utils/addressComputer';
 
 export class TokenDeploymentError extends Error {
   constructor(message: string) {
@@ -25,6 +26,7 @@ export class TokenDeploymentError extends Error {
  * @param deployerAddress - The address of the CreateCall contract
  * @param useCreate2 - Whether to use create2 for deterministic addresses
  * @param salt - The salt to use for create2 (required if useCreate2 is true)
+ * @param safeAddress - The address of the Safe that will deploy the contract (required if useCreate2 is true)
  * @returns The Safe transaction data
  */
 export async function generateTokenDeploymentTransaction(
@@ -32,13 +34,23 @@ export async function generateTokenDeploymentTransaction(
   deployerAddress: string,
   useCreate2 = false,
   salt?: string,
+  safeAddress?: string,
 ): Promise<SafeTransactionDataBase> {
   if (!ethers.isAddress(deployerAddress)) {
     throw new TokenDeploymentError('Invalid deployer address');
   }
 
-  if (useCreate2 && !salt) {
-    throw new TokenDeploymentError('Salt is required for create2 deployment');
+  // Validate create2 requirements upfront
+  if (useCreate2) {
+    if (!salt) {
+      throw new TokenDeploymentError('Salt is required for create2 deployment');
+    }
+    if (!safeAddress) {
+      throw new TokenDeploymentError('Safe address is required for create2 deployment');
+    }
+    if (!ethers.isAddress(safeAddress)) {
+      throw new TokenDeploymentError('Invalid safe address');
+    }
   }
 
   let parsedInput: TokenDeploymentParams;
@@ -85,6 +97,13 @@ export async function generateTokenDeploymentTransaction(
       ['bytes', 'bytes'],
       [BYTECODES.BURN_MINT_ERC20, constructorArgs],
     );
+
+    // For create2, compute and log the expected contract address
+    if (useCreate2) {
+      // We can safely use salt and safeAddress here as we validated them upfront
+      // TypeScript doesn't know that our validation ensures these are defined
+      computeCreate2Address(safeAddress!, deploymentData, salt!);
+    }
 
     // Encode the deployment transaction
     const data = useCreate2

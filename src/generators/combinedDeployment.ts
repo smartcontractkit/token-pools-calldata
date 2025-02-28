@@ -147,6 +147,7 @@ export async function generateCombinedDeploymentTransactions(
 
     const poolTransaction = await generatePoolDeploymentTransaction(
       JSON.stringify(poolDeploymentInput),
+      deployerAddress,
     );
 
     logger.info('Successfully generated combined deployment transactions', {
