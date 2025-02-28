@@ -9,16 +9,46 @@ import {
   createSafeTransactionJSON,
 } from './generators/chainUpdateCalldata';
 import logger from './utils/logger';
+import {
+  generateTokenDeploymentTransaction,
+  createTokenDeploymentJSON,
+} from './generators/tokenDeployment';
+import {
+  generatePoolDeploymentTransaction,
+  createPoolDeploymentJSON,
+} from './generators/poolDeployment';
+import {
+  generateCombinedDeploymentTransactions,
+  createCombinedDeploymentJSON,
+} from './generators/combinedDeployment';
+import { TokenDeploymentParams } from './types/tokenDeployment';
+import { PoolDeploymentParams } from './types/poolDeployment';
+import { CombinedDeploymentParams } from './types/combinedDeployment';
+import { SafeMetadata } from './types/safe';
 
-interface ChainUpdateOptions {
+/**
+ * Base options interface for all commands
+ */
+interface BaseOptions {
   input: string;
   output?: string;
+  format?: 'calldata' | 'safe-json';
   safe?: string;
   owner?: string;
   chainId?: string;
-  format?: 'calldata' | 'safe-json';
+}
+
+/**
+ * Options for chain update command
+ */
+interface ChainUpdateOptions extends BaseOptions {
   tokenPool?: string;
 }
+
+/**
+ * Options for deployment commands
+ */
+type DeploymentOptions = BaseOptions;
 
 function createProgram(): Command {
   return new Command()
@@ -101,6 +131,217 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
   }
 }
 
+async function handleTokenDeployment(options: DeploymentOptions): Promise<void> {
+  try {
+    // Validate Ethereum addresses if provided
+    if (options.safe && !ethers.isAddress(options.safe)) {
+      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
+    }
+    if (options.owner && !ethers.isAddress(options.owner)) {
+      throw new Error(`Invalid owner address: ${String(options.owner)}`);
+    }
+
+    const inputPath = path.resolve(options.input);
+    const inputJson = await fs.readFile(inputPath, 'utf-8');
+    const transaction = await generateTokenDeploymentTransaction(inputJson);
+
+    // Parse input JSON for Safe JSON format
+    const parsedInput = JSON.parse(inputJson) as TokenDeploymentParams;
+
+    if (options.format === 'safe-json') {
+      if (!options.chainId || !options.safe || !options.owner) {
+        throw new Error(
+          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
+        );
+      }
+
+      const metadata: SafeMetadata = {
+        chainId: options.chainId,
+        safeAddress: options.safe,
+        ownerAddress: options.owner,
+      };
+
+      const safeJson = createTokenDeploymentJSON(transaction, parsedInput, metadata);
+      const formattedJson = await formatJSON(safeJson);
+
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, formattedJson);
+        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
+      } else {
+        console.log(formattedJson);
+      }
+    } else {
+      // Default format: just output the transaction data
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, transaction.data + '\n');
+        logger.info('Successfully wrote transaction data to file', { outputPath });
+      } else {
+        console.log(transaction.data);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error('Failed to generate token deployment', {
+        error: error.message,
+        stack: error.stack,
+      });
+    } else {
+      logger.error('Failed to generate token deployment', { error: 'Unknown error' });
+    }
+    process.exit(1);
+  }
+}
+
+async function handlePoolDeployment(options: DeploymentOptions): Promise<void> {
+  try {
+    // Validate Ethereum addresses if provided
+    if (options.safe && !ethers.isAddress(options.safe)) {
+      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
+    }
+    if (options.owner && !ethers.isAddress(options.owner)) {
+      throw new Error(`Invalid owner address: ${String(options.owner)}`);
+    }
+
+    const inputPath = path.resolve(options.input);
+    const inputJson = await fs.readFile(inputPath, 'utf-8');
+    const transaction = await generatePoolDeploymentTransaction(inputJson);
+
+    // Parse input JSON for Safe JSON format
+    const parsedInput = JSON.parse(inputJson) as PoolDeploymentParams;
+
+    if (options.format === 'safe-json') {
+      if (!options.chainId || !options.safe || !options.owner) {
+        throw new Error(
+          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
+        );
+      }
+
+      const metadata: SafeMetadata = {
+        chainId: options.chainId,
+        safeAddress: options.safe,
+        ownerAddress: options.owner,
+      };
+
+      const safeJson = createPoolDeploymentJSON(transaction, parsedInput, metadata);
+      const formattedJson = await formatJSON(safeJson);
+
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, formattedJson);
+        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
+      } else {
+        console.log(formattedJson);
+      }
+    } else {
+      // Default format: just output the transaction data
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, transaction.data + '\n');
+        logger.info('Successfully wrote transaction data to file', { outputPath });
+      } else {
+        console.log(transaction.data);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error('Failed to generate pool deployment', {
+        error: error.message,
+        stack: error.stack,
+      });
+    } else {
+      logger.error('Failed to generate pool deployment', { error: 'Unknown error' });
+    }
+    process.exit(1);
+  }
+}
+
+async function handleCombinedDeployment(options: DeploymentOptions): Promise<void> {
+  try {
+    // Validate Ethereum addresses if provided
+    if (options.safe && !ethers.isAddress(options.safe)) {
+      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
+    }
+    if (options.owner && !ethers.isAddress(options.owner)) {
+      throw new Error(`Invalid owner address: ${String(options.owner)}`);
+    }
+
+    const inputPath = path.resolve(options.input);
+    const inputJson = await fs.readFile(inputPath, 'utf-8');
+
+    // Create metadata for transaction generation
+    if (!options.safe) {
+      throw new Error('safe address is required for combined deployment');
+    }
+
+    const metadata: SafeMetadata = {
+      chainId: options.chainId || '--CHAIN-ID--',
+      safeAddress: options.safe,
+      ownerAddress: options.owner || '--OWNER--',
+    };
+
+    const { transactions, computedTokenAddress } = await generateCombinedDeploymentTransactions(
+      inputJson,
+      metadata,
+    );
+
+    // Parse input JSON for Safe JSON format
+    const parsedInput = JSON.parse(inputJson) as CombinedDeploymentParams;
+
+    if (options.format === 'safe-json') {
+      if (!options.chainId || !options.safe || !options.owner) {
+        throw new Error(
+          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
+        );
+      }
+
+      const safeJson = createCombinedDeploymentJSON(
+        transactions,
+        parsedInput,
+        metadata,
+        computedTokenAddress,
+      );
+      const formattedJson = await formatJSON(safeJson);
+
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, formattedJson);
+        logger.info('Successfully wrote Safe Transaction Builder JSON to file', {
+          outputPath,
+          computedTokenAddress,
+        });
+      } else {
+        console.log(formattedJson);
+      }
+    } else {
+      // Default format: output the transaction data array
+      const output = transactions.map((tx) => tx.data).join('\n') + '\n';
+      if (options.output) {
+        const outputPath = path.resolve(options.output);
+        await fs.writeFile(outputPath, output);
+        logger.info('Successfully wrote transaction data to file', {
+          outputPath,
+          computedTokenAddress,
+        });
+      } else {
+        console.log(output);
+        console.log(`Computed token address: ${computedTokenAddress}`);
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      logger.error('Failed to generate combined deployment', {
+        error: error.message,
+        stack: error.stack,
+      });
+    } else {
+      logger.error('Failed to generate combined deployment', { error: 'Unknown error' });
+    }
+    process.exit(1);
+  }
+}
+
 // Initialize the program
 const program = createProgram();
 
@@ -123,6 +364,51 @@ program
     'Token Pool contract address (optional, defaults to placeholder)',
   )
   .action(handleChainUpdate);
+
+program
+  .command('generate-token-deployment')
+  .description('Generate deployment transaction for BurnMintERC20 token')
+  .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices(['calldata', 'safe-json'])
+      .default('calldata'),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(handleTokenDeployment);
+
+program
+  .command('generate-pool-deployment')
+  .description('Generate deployment transaction for TokenPool')
+  .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices(['calldata', 'safe-json'])
+      .default('calldata'),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(handlePoolDeployment);
+
+program
+  .command('generate-combined-deployment')
+  .description('Generate deployment transactions for both token and pool')
+  .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices(['calldata', 'safe-json'])
+      .default('calldata'),
+  )
+  .option('-s, --safe <address>', 'Safe address (required)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(handleCombinedDeployment);
 
 // Parse command line arguments
 void program.parse(process.argv);
