@@ -40,13 +40,13 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
   try {
     // Validate Ethereum addresses if provided
     if (options.safe && !ethers.isAddress(options.safe)) {
-      throw new Error(`Invalid Safe address: ${options.safe}`);
+      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
     }
     if (options.owner && !ethers.isAddress(options.owner)) {
-      throw new Error(`Invalid owner address: ${options.owner}`);
+      throw new Error(`Invalid owner address: ${String(options.owner)}`);
     }
     if (options.tokenPool && !ethers.isAddress(options.tokenPool)) {
-      throw new Error(`Invalid Token Pool address: ${options.tokenPool}`);
+      throw new Error(`Invalid Token Pool address: ${String(options.tokenPool)}`);
     }
 
     const inputPath = path.resolve(options.input);
@@ -113,12 +113,15 @@ program
   .addOption(
     new Option('-f, --format <type>', 'Output format')
       .choices(['calldata', 'safe-json'])
-      .default('calldata')
+      .default('calldata'),
   )
   .option('-s, --safe <address>', 'Safe address (for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (for safe-json format)')
-  .option('-p, --token-pool <address>', 'Token Pool contract address (optional, defaults to placeholder)')
+  .option(
+    '-p, --token-pool <address>',
+    'Token Pool contract address (optional, defaults to placeholder)',
+  )
   .action(handleChainUpdate);
 
 // Parse command line arguments

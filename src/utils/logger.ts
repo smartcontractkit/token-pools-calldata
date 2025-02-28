@@ -21,5 +21,5 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
-// Export a type-safe logger instance
-export default logger as Logger;
+// Export the logger instance
+export default logger;

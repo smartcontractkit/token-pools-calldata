@@ -25,7 +25,7 @@
   "license": "ISC",
   "devDependencies": {
     "@typechain/ethers-v6": "^0.5.1",
-    "@types/node": "^20.11.19",
+    "@types/node": "^22.13.5",
     "@typescript-eslint/eslint-plugin": "^7.0.1",
     "@typescript-eslint/parser": "^7.0.1",
     "eslint": "^8.56.0",
@@ -38,12 +38,12 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "@safe-global/types-kit": "^1.0.2",
+    "@safe-global/types-kit": "^1.0.4",
     "commander": "^13.1.0",
     "ethers": "^6.11.1",
-    "prettier": "^3.2.5",
+    "prettier": "^3.5.2",
     "winston": "^3.11.0",
-    "zod": "^3.22.4"
+    "zod": "^3.24.2"
   },
   "lint-staged": {
     "*.ts": [
