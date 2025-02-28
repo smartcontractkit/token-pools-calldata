@@ -18,6 +18,7 @@ export const burnMintTokenPoolParamsSchema = basePoolParamsSchema;
 // LockReleaseTokenPool specific parameters
 export const lockReleaseTokenPoolParamsSchema = basePoolParamsSchema.extend({
   armProxy: z.string(),
+  acceptLiquidity: z.boolean().optional().default(true),
 });
 
 // Combined pool deployment parameters

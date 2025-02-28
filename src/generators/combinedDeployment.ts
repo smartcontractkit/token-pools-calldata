@@ -43,12 +43,26 @@ interface RawCombinedDeploymentInput {
  * Generates a combined deployment transaction for token and pool
  * @param inputJson - The input JSON string containing deployment parameters
  * @param metadata - The Safe metadata
+ * @param deployerAddress - The address of the CreateCall contract
+ * @param useCreate2 - Whether to use create2 for deterministic addresses
+ * @param salt - The salt to use for create2 (required if useCreate2 is true)
  * @returns The Safe transaction data array and computed token address
  */
 export async function generateCombinedDeploymentTransactions(
   inputJson: string,
   metadata: SafeMetadata,
+  deployerAddress: string,
+  useCreate2 = false,
+  salt?: string,
 ): Promise<{ transactions: SafeTransactionDataBase[]; computedTokenAddress: string }> {
+  if (!ethers.isAddress(deployerAddress)) {
+    throw new CombinedDeploymentError('Invalid deployer address');
+  }
+
+  if (useCreate2 && !salt) {
+    throw new CombinedDeploymentError('Salt is required for create2 deployment');
+  }
+
   let parsedInput: CombinedDeploymentParams;
 
   try {
@@ -104,13 +118,23 @@ export async function generateCombinedDeploymentTransactions(
     // Generate token deployment transaction
     const tokenTransaction = await generateTokenDeploymentTransaction(
       JSON.stringify(parsedInput.token),
+      deployerAddress,
+      useCreate2,
+      salt,
     );
 
     // Compute the token address that will be deployed
-    const computedTokenAddress = ethers.getCreateAddress({
-      from: metadata.safeAddress,
-      nonce: 0, // Assuming this is the first transaction from the Safe
-    });
+    // For create2, we need to compute the address differently
+    const computedTokenAddress = useCreate2
+      ? ethers.getCreate2Address(
+          metadata.safeAddress,
+          salt!,
+          ethers.keccak256(tokenTransaction.data),
+        )
+      : ethers.getCreateAddress({
+          from: metadata.safeAddress,
+          nonce: 0, // Assuming this is the first transaction from the Safe
+        });
 
     // Generate pool deployment transaction with computed token address
     const poolDeploymentInput: PoolDeploymentParams = {

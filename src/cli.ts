@@ -48,7 +48,11 @@ interface ChainUpdateOptions extends BaseOptions {
 /**
  * Options for deployment commands
  */
-type DeploymentOptions = BaseOptions;
+interface DeploymentOptions extends BaseOptions {
+  deployer: string; // CreateCall contract address
+  useCreate2?: boolean;
+  salt?: string;
+}
 
 function createProgram(): Command {
   return new Command()
@@ -133,17 +137,30 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
 
 async function handleTokenDeployment(options: DeploymentOptions): Promise<void> {
   try {
-    // Validate Ethereum addresses if provided
+    // Validate Ethereum addresses
     if (options.safe && !ethers.isAddress(options.safe)) {
       throw new Error(`Invalid Safe address: ${String(options.safe)}`);
     }
     if (options.owner && !ethers.isAddress(options.owner)) {
       throw new Error(`Invalid owner address: ${String(options.owner)}`);
     }
+    if (!ethers.isAddress(options.deployer)) {
+      throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
+    }
+
+    // Validate create2 parameters
+    if (options.useCreate2 && !options.salt) {
+      throw new Error('Salt is required when using create2');
+    }
 
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const transaction = await generateTokenDeploymentTransaction(inputJson);
+    const transaction = await generateTokenDeploymentTransaction(
+      inputJson,
+      options.deployer,
+      options.useCreate2,
+      options.salt,
+    );
 
     // Parse input JSON for Safe JSON format
     const parsedInput = JSON.parse(inputJson) as TokenDeploymentParams;
@@ -284,6 +301,9 @@ async function handleCombinedDeployment(options: DeploymentOptions): Promise<voi
     const { transactions, computedTokenAddress } = await generateCombinedDeploymentTransactions(
       inputJson,
       metadata,
+      options.deployer,
+      options.useCreate2,
+      options.salt,
     );
 
     // Parse input JSON for Safe JSON format
@@ -369,6 +389,7 @@ program
   .command('generate-token-deployment')
   .description('Generate deployment transaction for BurnMintERC20 token')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .requiredOption('-d, --deployer <address>', 'CreateCall contract address')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
@@ -378,6 +399,8 @@ program
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .option('--use-create2', 'Use create2 for deterministic addresses')
+  .option('--salt <bytes32>', 'Salt for create2 (required if using create2)')
   .action(handleTokenDeployment);
 
 program
@@ -399,6 +422,7 @@ program
   .command('generate-combined-deployment')
   .description('Generate deployment transactions for both token and pool')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .requiredOption('-d, --deployer <address>', 'CreateCall contract address')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
@@ -408,6 +432,8 @@ program
   .option('-s, --safe <address>', 'Safe address (required)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .option('--use-create2', 'Use create2 for deterministic addresses')
+  .option('--salt <bytes32>', 'Salt for create2 (required if using create2)')
   .action(handleCombinedDeployment);
 
 // Parse command line arguments
