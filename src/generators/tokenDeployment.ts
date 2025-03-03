@@ -75,6 +75,7 @@ export async function generateTokenAndPoolDeployment(
       parsedInput.decimals,
       parsedInput.maxSupply,
       parsedInput.preMint,
+      safeAddress,
     ]);
 
     // Combine bytecode and constructor args using solidityPacked
@@ -92,28 +93,8 @@ export async function generateTokenAndPoolDeployment(
     // Compute deterministic addresses
     const tokenAddress = computeCreate2Address(factoryAddress, tokenInitCode, salt, safeAddress);
 
-    // Encode pool constructor args
-    const poolConstructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(
-      ['address', 'uint8', 'address[]', 'address', 'address'],
-      [
-        tokenAddress,
-        parsedInput.decimals,
-        [],
-        process.env.RMN_PROXY_ADDRESS || '0x0',
-        process.env.CCIP_ROUTER_ADDRESS || '0x0',
-      ],
-    );
-
-    const poolBytecode = ethers.solidityPacked(
-      ['bytes', 'bytes'],
-      [tokenPoolInitCode, poolConstructorArgs],
-    );
-
-    const poolAddress = computeCreate2Address(factoryAddress, poolBytecode, salt, safeAddress);
-
-    logger.info('Computed deterministic addresses', {
+    logger.info('Computed Token deterministic addresses', {
       tokenAddress,
-      poolAddress,
       salt,
     });
 
