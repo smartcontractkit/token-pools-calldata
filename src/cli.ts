@@ -5,8 +5,8 @@ import path from 'path';
 import prettier from 'prettier';
 import { ethers } from 'ethers';
 import {
-  generateChainUpdateCalldata,
-  createSafeTransactionJSON,
+  generateChainUpdateTransaction,
+  createChainUpdateJSON,
 } from './generators/chainUpdateCalldata';
 import logger from './utils/logger';
 import {
@@ -20,6 +20,7 @@ import {
 import { TokenDeploymentParams } from './types/tokenDeployment';
 import { PoolDeploymentParams } from './types/poolDeployment';
 import { SafeMetadata } from './types/safe';
+import { SafeChainUpdateMetadata } from './types/chainUpdate';
 
 /**
  * Base options interface for all commands
@@ -92,22 +93,23 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
 
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const calldata = await generateChainUpdateCalldata(inputJson);
+    const transaction = await generateChainUpdateTransaction(inputJson);
 
-    // If format is safe-json, generate Safe Transaction Builder JSON
     if (options.format === 'safe-json') {
-      if (!options.chainId) {
-        throw new Error('chainId is required for Safe Transaction Builder JSON format');
+      if (!options.chainId || !options.safe || !options.owner) {
+        throw new Error(
+          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
+        );
       }
 
-      const safeJson = createSafeTransactionJSON(
-        options.chainId,
-        options.safe || '--SAFE--', // Use placeholder if not provided
-        options.owner || '--OWNER--', // Use placeholder if not provided
-        calldata,
-        options.tokenPool || '0xYOUR_POOL_ADDRESS', // Use placeholder if not provided
-      );
+      const metadata: SafeChainUpdateMetadata = {
+        chainId: options.chainId,
+        safeAddress: options.safe,
+        ownerAddress: options.owner,
+        tokenPoolAddress: options.tokenPool || '0xYOUR_POOL_ADDRESS',
+      };
 
+      const safeJson = createChainUpdateJSON(transaction, metadata);
       const formattedJson = await formatJSON(safeJson);
 
       if (options.output) {
@@ -118,23 +120,23 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
         console.log(formattedJson);
       }
     } else {
-      // Default format: just output the calldata
+      // Default format: just output the transaction data
       if (options.output) {
         const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, calldata + '\n');
-        logger.info('Successfully wrote calldata to file', { outputPath });
+        await fs.writeFile(outputPath, transaction.data + '\n');
+        logger.info('Successfully wrote transaction data to file', { outputPath });
       } else {
-        console.log(calldata);
+        console.log(transaction.data);
       }
     }
   } catch (error) {
     if (error instanceof Error) {
-      logger.error('Failed to generate chain update calldata', {
+      logger.error('Failed to generate chain update transaction', {
         error: error.message,
         stack: error.stack,
       });
     } else {
-      logger.error('Failed to generate chain update calldata', {
+      logger.error('Failed to generate chain update transaction', {
         error: 'Unknown error',
       });
     }
