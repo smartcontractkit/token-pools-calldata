@@ -1,6 +1,6 @@
 # Token Pools Calldata Generator
 
-A tool to generate calldata for TokenPool contract interactions, specifically for the `applyChainUpdates` function. Supports both raw calldata and Safe Transaction Builder JSON formats.
+A tool to generate calldata for TokenPool contract interactions, including token and pool deployment, and chain updates. Supports both raw calldata and Safe Transaction Builder JSON formats.
 
 ## Prerequisites
 
@@ -24,6 +24,8 @@ pnpm install
 .
 ├── abis/          # Contract ABIs
 ├── examples/      # Example input files
+│   ├── token-deployment.json
+│   ├── pool-deployment.json
 │   └── chain-update.json
 ├── src/
 │   ├── generators/  # Calldata generation logic
@@ -33,12 +35,105 @@ pnpm install
 
 ## Usage
 
+### Deploy Token and Pool
+
+The tool supports deploying a new token and its associated pool using the TokenPoolFactory contract. You can either:
+1. Deploy both token and pool together using `generate-token-deployment`
+2. Deploy just a pool for an existing token using `generate-pool-deployment`
+
+#### Token Deployment Input Format
+
+Create a JSON file with the token parameters (e.g., `examples/token-deployment.json`):
+
+```json
+{
+  "name": "Test CCIP Token",
+  "symbol": "tCCIP",
+  "decimals": 18,
+  "maxSupply": "1000000000000000000000000",
+  "preMint": "100000000000000000000000",
+  "remoteTokenPools": []
+}
+```
+
+#### Generate Token Deployment Transaction
+
+```bash
+# Generate Safe Transaction Builder JSON
+pnpm start generate-token-deployment \
+  -i examples/token-deployment.json \
+  -d <factory-address> \
+  --salt <32-byte-hex> \
+  -f safe-json \
+  -s <safe-address> \
+  -w <owner-address> \
+  -c <chain-id> \
+  -o output/token-deployment.json
+
+# Example with actual values:
+pnpm start generate-token-deployment \
+  -i examples/token-deployment.json \
+  -d 0x17d8a409fe2cef2d3808bcb61f14abeffc28876e \
+  --salt 0x0000000000000000000000000000000000000000000000000000000123456789 \
+  -f safe-json \
+  -s 0x5419c6d83473d1c653e7b51e8568fafedce94f01 \
+  -w 0x0000000000000000000000000000000000000000 \
+  -c 1 \
+  -o output/token-deployment.json
+```
+
+Command options:
+- `-i, --input <path>`: Path to input JSON file (required)
+- `-d, --deployer <address>`: TokenPoolFactory contract address (required)
+- `--salt <bytes32>`: Salt for CREATE2 deployment (required, must be 32 bytes)
+- `-f, --format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
+- `-s, --safe <address>`: Safe address for safe-json format (required for safe-json)
+- `-w, --owner <address>`: Owner address for safe-json format (required for safe-json)
+- `-c, --chain-id <id>`: Chain ID for safe-json format (required for safe-json)
+- `-o, --output <path>`: Path to output file (optional, defaults to stdout)
+
+#### Pool Deployment Input Format
+
+For deploying a pool for an existing token, create a JSON file (e.g., `examples/pool-deployment.json`):
+
+```json
+{
+  "poolType": "BurnMintTokenPool",
+  "poolParams": {
+    "token": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+    "decimals": 18,
+    "allowlist": [
+      "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+    ],
+    "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "ccipRouter": "0xD0daae2231E9CB96b94C8512223533293C3693Bf"
+  }
+}
+```
+
+#### Generate Pool Deployment Transaction
+
+```bash
+# Generate Safe Transaction Builder JSON
+pnpm start generate-pool-deployment \
+  -i examples/pool-deployment.json \
+  -d <factory-address> \
+  -t <token-address> \
+  --salt <32-byte-hex> \
+  -f safe-json \
+  -s <safe-address> \
+  -w <owner-address> \
+  -c <chain-id> \
+  -o output/pool-deployment.json
+```
+
+Additional options for pool deployment:
+- `-t, --token-address <address>`: Address of the existing token (required)
+
 ### Generate Chain Update Calldata
 
 ```bash
-# Generate raw calldata
-pnpm start generate-chain-update --input examples/chain-update.json
-
 # Generate Safe Transaction Builder JSON
 pnpm start generate-chain-update --input examples/chain-update.json --format safe-json --chain-id 11155111 --safe 0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f --owner 0x0000000000000000000000000000000000000000 --token-pool 0x1234567890123456789012345678901234567890 --output output.json
 
@@ -59,7 +154,7 @@ pnpm start generate-chain-update --help
 - `--chain-id <id>`: Chain ID for safe-json format (required for safe-json)
 - `--token-pool <address>`: Token Pool contract address (optional, defaults to "0xYOUR_POOL_ADDRESS")
 
-### Input Format
+### Chain Update Input Format
 
 The input JSON file should follow this structure:
 
@@ -95,7 +190,7 @@ Outputs the encoded function calldata as a hex string.
 
 #### Safe Transaction Builder JSON
 
-Outputs a JSON file compatible with the Safe Transaction Builder format. Note that the TokenPool address is set to a placeholder ("0xYOUR_POOL_ADDRESS") which should be replaced with the actual address in the Safe Transaction Builder UI:
+Outputs a JSON file compatible with the Safe Transaction Builder format:
 
 ```json
 {
@@ -176,5 +271,5 @@ The tool validates input JSON against a schema and provides detailed error messa
 The tool can generate:
 
 - Raw calldata for direct contract interaction
-- Safe Transaction Builder JSON for use with Safe Transaction Builder (with placeholder TokenPool address)
+- Safe Transaction Builder JSON for use with Safe Transaction Builder
 - Output can be written to stdout or a file
