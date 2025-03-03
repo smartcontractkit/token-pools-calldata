@@ -5,8 +5,8 @@ A tool to generate calldata for TokenPool contract interactions, including token
 ## Prerequisites
 
 - Node.js >= 20.0.0
-- pnpm 
-`npm install pnpm`
+- pnpm
+  `npm install pnpm`
 
 ## Installation
 
@@ -38,6 +38,7 @@ pnpm install
 ### Deploy Token and Pool
 
 The tool supports deploying a new token and its associated pool using the TokenPoolFactory contract. You can either:
+
 1. Deploy both token and pool together using `generate-token-deployment`
 2. Deploy just a pool for an existing token using `generate-pool-deployment`
 
@@ -83,6 +84,7 @@ pnpm start generate-token-deployment \
 ```
 
 Command options:
+
 - `-i, --input <path>`: Path to input JSON file (required)
 - `-d, --deployer <address>`: TokenPoolFactory contract address (required)
 - `--salt <bytes32>`: Salt for CREATE2 deployment (required, must be 32 bytes)
@@ -94,23 +96,23 @@ Command options:
 
 #### Pool Deployment Input Format
 
-For deploying a pool for an existing token, create a JSON file (e.g., `examples/pool-deployment.json`):
+For deploying a pool for an existing token, create a JSON file (e.g., `examples/pool-deployment.json`). The input matches the parameters of the `deployTokenPoolWithExistingToken` function:
 
 ```json
 {
-  "poolType": "BurnMintTokenPool",
-  "poolParams": {
-    "token": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
-    "decimals": 18,
-    "allowlist": [
-      "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
-    ],
-    "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    "ccipRouter": "0xD0daae2231E9CB96b94C8512223533293C3693Bf"
-  }
+  "token": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+  "decimals": 18,
+  "remoteTokenPools": [],
+  "poolType": "BurnMintTokenPool"
 }
 ```
+
+The input JSON requires:
+
+- `token`: Address of the existing token (required)
+- `decimals`: Token decimals (required, 0-255)
+- `remoteTokenPools`: Array of remote token pool configurations (optional, defaults to empty array)
+- `poolType`: Either "BurnMintTokenPool" or "LockReleaseTokenPool" (required)
 
 #### Generate Pool Deployment Transaction
 
@@ -119,7 +121,6 @@ For deploying a pool for an existing token, create a JSON file (e.g., `examples/
 pnpm start generate-pool-deployment \
   -i examples/pool-deployment.json \
   -d <factory-address> \
-  -t <token-address> \
   --salt <32-byte-hex> \
   -f safe-json \
   -s <safe-address> \
@@ -128,12 +129,28 @@ pnpm start generate-pool-deployment \
   -o output/pool-deployment.json
 ```
 
+```bash
+# Example with actual values:
+
+pnpm start generate-pool-deployment \
+  -i examples/pool-deployment.json \
+  -d 0x17d8a409fe2cef2d3808bcb61f14abeffc28876e \
+  --salt 0x0000000000000000000000000000000000000000000000000000000123456789 \
+  -f safe-json \
+  -s 0x5419c6d83473d1c653e7b51e8568fafedce94f01 \
+  -w 0x0000000000000000000000000000000000000000 \
+  -c 1 \
+  -o output/pool-deployment.json
+```
+
 Additional options for pool deployment:
+
 - `-t, --token-address <address>`: Address of the existing token (required)
 
 ### Generate Chain Update Calldata
 
 The tool supports updating chain configurations for token pools, allowing you to:
+
 1. Remove existing chain configurations
 2. Add new chain configurations with rate limiters
 
@@ -190,6 +207,7 @@ pnpm start generate-chain-update \
 ```
 
 Command options:
+
 - `-i, --input <path>`: Path to input JSON file (required)
 - `-p, --token-pool <address>`: Token Pool contract address (required for safe-json)
 - `-f, --format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
