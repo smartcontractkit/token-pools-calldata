@@ -1,0 +1,13 @@
+{
+  "poolType": "BurnMintTokenPool",
+  "poolParams": {
+    "token": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+    "decimals": 18,
+    "allowlist": [
+      "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+    ],
+    "owner": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "ccipRouter": "0xD0daae2231E9CB96b94C8512223533293C3693Bf"
+  }
+}

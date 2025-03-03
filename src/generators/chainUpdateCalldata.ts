@@ -146,7 +146,7 @@ export async function generateChainUpdateCalldata(inputJson: string): Promise<st
 
   try {
     // Parse and validate the input JSON
-    const rawInput = JSON.parse(inputJson);
+    const rawInput = JSON.parse(inputJson) as unknown;
     parsedInput = await chainUpdatesInputSchema.parseAsync(rawInput);
 
     logger.info('Successfully validated chain updates input', {

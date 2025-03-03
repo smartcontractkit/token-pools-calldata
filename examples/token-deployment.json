@@ -1,0 +1,8 @@
+{
+  "name": "Test CCIP Token",
+  "symbol": "tCCIP",
+  "decimals": 18,
+  "maxSupply": "1000000000000000000000000",
+  "preMint": "100000000000000000000000",
+  "remoteTokenPools": []
+}
