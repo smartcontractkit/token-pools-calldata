@@ -8,7 +8,7 @@ import {
   SAFE_TX_BUILDER_VERSION,
   SafeMetadata,
 } from '../types/safe';
-import { TokenPoolFactory__factory, BurnMintERC20__factory } from '../typechain';
+import { TokenPoolFactory__factory, FactoryBurnMintERC20__factory } from '../typechain';
 import logger from '../utils/logger';
 
 export class TokenDeploymentError extends Error {
@@ -60,7 +60,7 @@ export async function generateTokenAndPoolDeployment(
     const remoteTokenPools = parsedInput.remoteTokenPools;
 
     // Get the factory interface
-    const tokenInterface = BurnMintERC20__factory.createInterface();
+    const tokenInterface = FactoryBurnMintERC20__factory.createInterface();
 
     // Encode token constructor parameters using the factory interface
     const constructorArgs = tokenInterface.encodeDeploy([
@@ -74,7 +74,7 @@ export async function generateTokenAndPoolDeployment(
     // Combine bytecode and constructor args using solidityPacked
     const tokenInitCode = ethers.solidityPacked(
       ['bytes', 'bytes'],
-      [BYTECODES.BURN_MINT_ERC20, constructorArgs],
+      [BYTECODES.FACTORY_BURN_MINT_ERC20, constructorArgs],
     );
 
     // Get the factory interface
@@ -89,7 +89,7 @@ export async function generateTokenAndPoolDeployment(
       parsedInput.decimals,
       tokenInitCode,
       tokenPoolInitCode,
-      ethers.id(salt), // Convert string salt to bytes32
+      salt,
     ]);
 
     logger.info('Successfully generated token and pool deployment transaction');

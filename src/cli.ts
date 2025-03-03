@@ -41,12 +41,23 @@ interface ChainUpdateOptions extends BaseOptions {
 }
 
 /**
- * Options for deployment commands
+ * Base options for deployment commands
  */
-interface DeploymentOptions extends BaseOptions {
-  deployer: string; // CreateCall contract address
-  tokenAddress?: string; // Token address (required for pool deployment)
-  salt?: string; // Salt for create2
+interface BaseDeploymentOptions extends BaseOptions {
+  deployer: string; // TokenPoolFactory contract address
+  salt: string;
+}
+
+/**
+ * Options for token deployment command
+ */
+interface TokenDeploymentOptions extends BaseDeploymentOptions {}
+
+/**
+ * Options for pool deployment command
+ */
+interface PoolDeploymentOptions extends BaseDeploymentOptions {
+  tokenAddress: string; // Token address (required for pool deployment)
 }
 
 function createProgram(): Command {
@@ -130,7 +141,7 @@ async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
   }
 }
 
-async function handleTokenDeployment(options: DeploymentOptions): Promise<void> {
+async function handleTokenDeployment(options: TokenDeploymentOptions): Promise<void> {
   try {
     // Validate Ethereum addresses if provided
     if (options.safe && !ethers.isAddress(options.safe)) {
@@ -142,13 +153,19 @@ async function handleTokenDeployment(options: DeploymentOptions): Promise<void> 
     if (!ethers.isAddress(options.deployer)) {
       throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
     }
+    if (!options.salt) {
+      throw new Error('Salt is required');
+    }
+    if (ethers.dataLength(options.salt) !== 32) {
+      throw new Error('Salt must be a 32-byte hex string');
+    }
 
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
     const transaction = await generateTokenAndPoolDeployment(
       inputJson,
       options.deployer,
-      options.salt || '',
+      options.salt,
     );
 
     // Parse input JSON for Safe JSON format
@@ -200,7 +217,7 @@ async function handleTokenDeployment(options: DeploymentOptions): Promise<void> 
   }
 }
 
-async function handlePoolDeployment(options: DeploymentOptions): Promise<void> {
+async function handlePoolDeployment(options: PoolDeploymentOptions): Promise<void> {
   try {
     // Validate Ethereum addresses if provided
     if (options.safe && !ethers.isAddress(options.safe)) {
@@ -212,14 +229,23 @@ async function handlePoolDeployment(options: DeploymentOptions): Promise<void> {
     if (!ethers.isAddress(options.deployer)) {
       throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
     }
+    if (!ethers.isAddress(options.tokenAddress)) {
+      throw new Error(`Invalid token address: ${String(options.tokenAddress)}`);
+    }
+    if (!options.salt) {
+      throw new Error('Salt is required');
+    }
+    if (ethers.dataLength(options.salt) !== 32) {
+      throw new Error('Salt must be a 32-byte hex string');
+    }
 
     const inputPath = path.resolve(options.input);
     const inputJson = await fs.readFile(inputPath, 'utf-8');
     const transaction = await generatePoolDeploymentTransaction(
       inputJson,
       options.deployer,
-      options.tokenAddress || '', // This should be required for pool deployment
-      options.salt || '',
+      options.tokenAddress,
+      options.salt,
     );
 
     // Parse input JSON for Safe JSON format
@@ -298,7 +324,7 @@ program
   .command('generate-token-deployment')
   .description('Generate deployment transaction for BurnMintERC20 token')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
-  .requiredOption('-d, --deployer <address>', 'CreateCall contract address')
+  .requiredOption('-d, --deployer <address>', 'TokenPoolFactory contract address')
   .requiredOption('--salt <bytes32>', 'Salt for create2')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
@@ -309,13 +335,13 @@ program
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
-  .action(handleTokenDeployment);
+  .action(handleTokenDeployment as (options: TokenDeploymentOptions) => Promise<void>);
 
 program
   .command('generate-pool-deployment')
   .description('Generate deployment transaction for TokenPool')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
-  .requiredOption('-d, --deployer <address>', 'CreateCall contract address')
+  .requiredOption('-d, --deployer <address>', 'TokenPoolFactory contract address')
   .requiredOption('-t, --token-address <address>', 'Token address')
   .requiredOption('--salt <bytes32>', 'Salt for create2')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
@@ -327,7 +353,7 @@ program
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
-  .action(handlePoolDeployment);
+  .action(handlePoolDeployment as (options: PoolDeploymentOptions) => Promise<void>);
 
 // Parse command line arguments
 void program.parse(process.argv);

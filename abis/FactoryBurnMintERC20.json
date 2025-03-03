@@ -25,20 +25,19 @@
         "internalType": "uint256",
         "name": "preMint",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      }
-    ],
-    "name": "InvalidRecipient",
+    "inputs": [],
+    "name": "CannotTransferToSelf",
     "type": "error"
   },
   {
@@ -50,6 +49,43 @@
       }
     ],
     "name": "MaxSupplyExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "MustBeProposedOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OnlyCallableByOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OwnerCannotBeZero",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "SenderNotBurner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "SenderNotMinter",
     "type": "error"
   },
   {
@@ -81,6 +117,32 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "address",
+        "name": "burner",
+        "type": "address"
+      }
+    ],
+    "name": "BurnAccessGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "burner",
+        "type": "address"
+      }
+    ],
+    "name": "BurnAccessRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "previousAdmin",
@@ -100,25 +162,26 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "previousAdminRole",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "newAdminRole",
-        "type": "bytes32"
+        "indexed": false,
+        "internalType": "address",
+        "name": "minter",
+        "type": "address"
       }
     ],
-    "name": "RoleAdminChanged",
+    "name": "MintAccessGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "minter",
+        "type": "address"
+      }
+    ],
+    "name": "MintAccessRevoked",
     "type": "event"
   },
   {
@@ -126,24 +189,18 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
         "internalType": "address",
-        "name": "account",
+        "name": "from",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "sender",
+        "name": "to",
         "type": "address"
       }
     ],
-    "name": "RoleGranted",
+    "name": "OwnershipTransferRequested",
     "type": "event"
   },
   {
@@ -151,24 +208,18 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
         "internalType": "address",
-        "name": "account",
+        "name": "from",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "sender",
+        "name": "to",
         "type": "address"
       }
     ],
-    "name": "RoleRevoked",
+    "name": "OwnershipTransferred",
     "type": "event"
   },
   {
@@ -198,41 +249,9 @@
   },
   {
     "inputs": [],
-    "name": "BURNER_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "DEFAULT_ADMIN_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "MINTER_ROLE",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
+    "name": "acceptOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -389,6 +408,43 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "subtractedValue",
+        "type": "uint256"
+      }
+    ],
+    "name": "decreaseApproval",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "success",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBurners",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "getCCIPAdmin",
     "outputs": [
@@ -402,22 +458,29 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      }
-    ],
-    "name": "getRoleAdmin",
+    "inputs": [],
+    "name": "getMinters",
     "outputs": [
       {
-        "internalType": "bytes32",
+        "internalType": "address[]",
         "name": "",
-        "type": "bytes32"
+        "type": "address[]"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "burner",
+        "type": "address"
+      }
+    ],
+    "name": "grantBurnRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -436,43 +499,14 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
         "internalType": "address",
-        "name": "account",
+        "name": "minter",
         "type": "address"
       }
     ],
-    "name": "grantRole",
+    "name": "grantMintRole",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "hasRole",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -497,6 +531,62 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "addedValue",
+        "type": "uint256"
+      }
+    ],
+    "name": "increaseApproval",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "burner",
+        "type": "address"
+      }
+    ],
+    "name": "isBurner",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "minter",
+        "type": "address"
+      }
+    ],
+    "name": "isMinter",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -544,19 +634,27 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
       {
         "internalType": "address",
-        "name": "account",
+        "name": "",
         "type": "address"
       }
     ],
-    "name": "renounceRole",
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "burner",
+        "type": "address"
+      }
+    ],
+    "name": "revokeBurnRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -564,17 +662,12 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "role",
-        "type": "bytes32"
-      },
-      {
         "internalType": "address",
-        "name": "account",
+        "name": "minter",
         "type": "address"
       }
     ],
-    "name": "revokeRole",
+    "name": "revokeMintRole",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -687,6 +780,19 @@
         "type": "bool"
       }
     ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   }
