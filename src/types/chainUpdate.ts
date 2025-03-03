@@ -1,62 +1,35 @@
 import { z } from 'zod';
-import { ethers } from 'ethers';
 
-// Helper function to validate Ethereum address
-const validateAddress = (address: string): boolean => {
-  try {
-    return ethers.isAddress(address);
-  } catch {
-    return false;
-  }
-};
+// Schema for rate limiter configuration
+export const rateLimiterConfigSchema = z.object({
+  isEnabled: z.boolean(),
+  capacity: z.string(), // BigNumber as string
+  rate: z.string(), // BigNumber as string
+});
 
-// Zod schema for rate limiter configuration
-const rateLimiterConfigSchema = z
-  .object({
-    isEnabled: z.boolean(),
-    capacity: z
-      .string()
-      .or(z.number())
-      .transform((val) => BigInt(val)),
-    rate: z
-      .string()
-      .or(z.number())
-      .transform((val) => BigInt(val)),
-  })
-  .refine(
-    (data) => {
-      return data.isEnabled ? data.rate > BigInt(0) && data.capacity > BigInt(0) : true;
-    },
-    {
-      message: 'Rate and capacity must be greater than 0 when rate limiter is enabled',
-    },
-  );
-
-// Zod schema for chain update
-const chainUpdateSchema = z.object({
-  remoteChainSelector: z
-    .string()
-    .or(z.number())
-    .transform((val) => BigInt(val)),
-  remotePoolAddresses: z.array(
-    z.string().refine(validateAddress, 'Invalid Ethereum address format'),
-  ),
-  remoteTokenAddress: z.string().refine(validateAddress, 'Invalid Ethereum address format'),
+// Schema for a single chain update
+export const chainUpdateSchema = z.object({
+  remoteChainSelector: z.string(), // BigNumber as string
+  remotePoolAddresses: z.array(z.string()), // Array of addresses
+  remoteTokenAddress: z.string(), // Address
   outboundRateLimiterConfig: rateLimiterConfigSchema,
   inboundRateLimiterConfig: rateLimiterConfigSchema,
 });
 
-// Schema for the entire input structure
+// Schema for the entire chain updates input
 export const chainUpdatesInputSchema = z.tuple([
-  z.array(
-    z
-      .string()
-      .or(z.number())
-      .transform((val) => BigInt(val)),
-  ), // chain selectors to remove
-  z.array(chainUpdateSchema), // chains to add
+  z.array(z.string()), // Chain selectors to remove
+  z.array(chainUpdateSchema), // Chain updates to add
 ]);
 
-// Export types for use in other files
+export type RateLimiterConfig = z.infer<typeof rateLimiterConfigSchema>;
 export type ChainUpdateInput = z.infer<typeof chainUpdateSchema>;
 export type ChainUpdatesInput = z.infer<typeof chainUpdatesInputSchema>;
+
+// Safe Transaction Builder types
+export interface SafeChainUpdateMetadata {
+  chainId: string;
+  safeAddress: string;
+  ownerAddress: string;
+  tokenPoolAddress: string;
+}

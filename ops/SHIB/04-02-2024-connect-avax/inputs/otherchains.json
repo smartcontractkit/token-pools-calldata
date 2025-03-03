@@ -1,23 +1,20 @@
 [
-    [],
-    [
-      {
-        "remoteChainSelector": "6433500567565415381",
-        "remotePoolAddresses": [
-          "0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8"
-        ],
-        "remoteTokenAddress": "0x2f643d728926C20269f0A04931dd7b4b6B650204",
-        "outboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        },
-        "inboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        }
+  [],
+  [
+    {
+      "remoteChainSelector": "6433500567565415381",
+      "remotePoolAddresses": ["0x6f6F5645B86b1fD3c4C015822a0E672132D4e2F8"],
+      "remoteTokenAddress": "0x2f643d728926C20269f0A04931dd7b4b6B650204",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
       }
-    ]
+    }
   ]
-  
+]

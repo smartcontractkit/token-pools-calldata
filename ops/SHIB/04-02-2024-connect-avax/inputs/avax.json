@@ -1,58 +1,50 @@
 [
-    [],
-    [
-      {
-        "remoteChainSelector": "4949039107694359620",
-        "remotePoolAddresses": [
-          "0x6f93AD7963BBdD8C655A0C819B9b79347EE04b70"
-        ],
-        "remoteTokenAddress": "0xB359155378FF5E2837f12ed0bee5168123c88ACC",
-        "outboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        },
-        "inboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        }
+  [],
+  [
+    {
+      "remoteChainSelector": "4949039107694359620",
+      "remotePoolAddresses": ["0x6f93AD7963BBdD8C655A0C819B9b79347EE04b70"],
+      "remoteTokenAddress": "0xB359155378FF5E2837f12ed0bee5168123c88ACC",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
       },
-      {
-        "remoteChainSelector": "15971525489660198786",
-        "remotePoolAddresses": [
-          "0xC026ae03C857093979872C665b13dBBA83B55987"
-        ],
-        "remoteTokenAddress": "0x9Ded28d9EC69F97efd718CE768dc39D78fd014F8",
-        "outboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        },
-        "inboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        }
-      },
-      {
-        "remoteChainSelector": "11344663589394136015",
-        "remotePoolAddresses": [
-          "0x7f1f90E6b6BAD9fc14ca71224B072541B739beb3"
-        ],
-        "remoteTokenAddress": "0xEc59dE82FFf1959E92b91daB975e4564FC3447cC",
-        "outboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        },
-        "inboundRateLimiterConfig": {
-          "isEnabled": false,
-          "capacity": "0",
-          "rate": "0"
-        }
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
       }
-
-    ]
+    },
+    {
+      "remoteChainSelector": "15971525489660198786",
+      "remotePoolAddresses": ["0xC026ae03C857093979872C665b13dBBA83B55987"],
+      "remoteTokenAddress": "0x9Ded28d9EC69F97efd718CE768dc39D78fd014F8",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      }
+    },
+    {
+      "remoteChainSelector": "11344663589394136015",
+      "remotePoolAddresses": ["0x7f1f90E6b6BAD9fc14ca71224B072541B739beb3"],
+      "remoteTokenAddress": "0xEc59dE82FFf1959E92b91daB975e4564FC3447cC",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      }
+    }
   ]
-  
+]

@@ -133,30 +133,13 @@ Additional options for pool deployment:
 
 ### Generate Chain Update Calldata
 
-```bash
-# Generate Safe Transaction Builder JSON
-pnpm start generate-chain-update --input examples/chain-update.json --format safe-json --chain-id 11155111 --safe 0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f --owner 0x0000000000000000000000000000000000000000 --token-pool 0x1234567890123456789012345678901234567890 --output output.json
+The tool supports updating chain configurations for token pools, allowing you to:
+1. Remove existing chain configurations
+2. Add new chain configurations with rate limiters
 
-# Save output to a file
-pnpm start generate-chain-update --input examples/chain-update.json --output output.txt
+#### Chain Update Input Format
 
-# Show help
-pnpm start generate-chain-update --help
-```
-
-### Command Options
-
-- `--input <path>`: Path to input JSON file (required)
-- `--output <path>`: Path to output file (optional, defaults to stdout)
-- `--format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
-- `--safe <address>`: Safe address for safe-json format (optional, defaults to "--SAFE--")
-- `--owner <address>`: Owner address for safe-json format (optional, defaults to "--OWNER--")
-- `--chain-id <id>`: Chain ID for safe-json format (required for safe-json)
-- `--token-pool <address>`: Token Pool contract address (optional, defaults to "0xYOUR_POOL_ADDRESS")
-
-### Chain Update Input Format
-
-The input JSON file should follow this structure:
+Create a JSON file with the chain update parameters (e.g., `examples/chain-update.json`):
 
 ```json
 [
@@ -181,6 +164,49 @@ The input JSON file should follow this structure:
   ]
 ]
 ```
+
+#### Generate Chain Update Transaction
+
+```bash
+# Generate Safe Transaction Builder JSON
+pnpm start generate-chain-update \
+  -i examples/chain-update.json \
+  -p <token-pool-address> \
+  -f safe-json \
+  -s <safe-address> \
+  -w <owner-address> \
+  -c <chain-id> \
+  -o output/chain-update.json
+
+# Example with actual values:
+pnpm start generate-chain-update \
+  -i examples/chain-update.json \
+  -p 0x1234567890123456789012345678901234567890 \
+  -f safe-json \
+  -s 0xbF6512B1bBEeC3a673Feff43C0A182C2b28DFD9f \
+  -w 0x0000000000000000000000000000000000000000 \
+  -c 11155111 \
+  -o output/chain-update.json
+```
+
+Command options:
+- `-i, --input <path>`: Path to input JSON file (required)
+- `-p, --token-pool <address>`: Token Pool contract address (required for safe-json)
+- `-f, --format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
+- `-s, --safe <address>`: Safe address for safe-json format (required for safe-json)
+- `-w, --owner <address>`: Owner address for safe-json format (required for safe-json)
+- `-c, --chain-id <id>`: Chain ID for safe-json format (required for safe-json)
+- `-o, --output <path>`: Path to output file (optional, defaults to stdout)
+
+### Command Options
+
+- `--input <path>`: Path to input JSON file (required)
+- `--output <path>`: Path to output file (optional, defaults to stdout)
+- `--format <type>`: Output format: "calldata" or "safe-json" (optional, defaults to "calldata")
+- `--safe <address>`: Safe address for safe-json format (optional, defaults to "--SAFE--")
+- `--owner <address>`: Owner address for safe-json format (optional, defaults to "--OWNER--")
+- `--chain-id <id>`: Chain ID for safe-json format (required for safe-json)
+- `--token-pool <address>`: Token Pool contract address (optional, defaults to "0xYOUR_POOL_ADDRESS")
 
 ### Output Formats
 

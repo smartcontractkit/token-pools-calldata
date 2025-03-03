@@ -1,42 +1,18 @@
 import { ethers } from 'ethers';
 import { TokenPool__factory, TokenPool } from '../typechain';
-import { ChainUpdateInput, ChainUpdatesInput, chainUpdatesInputSchema } from '../types/chainUpdate';
+import {
+  ChainUpdateInput,
+  ChainUpdatesInput,
+  chainUpdatesInputSchema,
+  SafeChainUpdateMetadata,
+} from '../types/chainUpdate';
+import {
+  SafeTransactionDataBase,
+  SafeTransactionBuilderJSON,
+  SAFE_TX_BUILDER_VERSION,
+  SafeOperationType,
+} from '../types/safe';
 import logger from '../utils/logger';
-
-// Safe Transaction Builder interfaces
-interface SafeTransactionBuilderMethod {
-  inputs: Array<{
-    name: string;
-    type: string;
-    internalType: string;
-  }>;
-  name: string;
-  payable: boolean;
-}
-
-interface SafeTransactionBuilderTransaction {
-  to: string;
-  value: string;
-  data: string;
-  contractMethod: SafeTransactionBuilderMethod;
-  contractInputsValues: Record<string, unknown> | null;
-}
-
-interface SafeTransactionBuilderMeta {
-  name: string;
-  description: string;
-  txBuilderVersion: string;
-  createdFromSafeAddress: string;
-  createdFromOwnerAddress: string;
-}
-
-interface SafeTransactionBuilderJSON {
-  version: string;
-  chainId: string;
-  createdAt: number;
-  meta: SafeTransactionBuilderMeta;
-  transactions: SafeTransactionBuilderTransaction[];
-}
 
 export class ChainUpdateError extends Error {
   constructor(message: string) {
@@ -53,20 +29,20 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
 
   try {
     return {
-      remoteChainSelector: chainUpdate.remoteChainSelector.toString(),
+      remoteChainSelector: chainUpdate.remoteChainSelector,
       remotePoolAddresses: chainUpdate.remotePoolAddresses.map((address) =>
         abiCoder.encode(['address'], [address]),
       ),
       remoteTokenAddress: abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]),
       outboundRateLimiterConfig: {
         isEnabled: chainUpdate.outboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.outboundRateLimiterConfig.capacity.toString(),
-        rate: chainUpdate.outboundRateLimiterConfig.rate.toString(),
+        capacity: chainUpdate.outboundRateLimiterConfig.capacity,
+        rate: chainUpdate.outboundRateLimiterConfig.rate,
       },
       inboundRateLimiterConfig: {
         isEnabled: chainUpdate.inboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.inboundRateLimiterConfig.capacity.toString(),
-        rate: chainUpdate.inboundRateLimiterConfig.rate.toString(),
+        capacity: chainUpdate.inboundRateLimiterConfig.capacity,
+        rate: chainUpdate.inboundRateLimiterConfig.rate,
       },
     };
   } catch (error) {
@@ -84,70 +60,18 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
 }
 
 /**
- * Creates a Safe Transaction Builder JSON for the chain updates
- * @param chainId - The chain ID where the transaction will be executed
- * @param safeAddress - The address of the Safe that will execute the transaction
- * @param ownerAddress - The address of the Safe owner creating the transaction
- * @param calldata - The encoded function calldata
- * @param tokenPoolAddress - The address of the TokenPool contract
- * @returns The Safe Transaction Builder JSON
- */
-export function createSafeTransactionJSON(
-  chainId: string,
-  safeAddress: string,
-  ownerAddress: string,
-  calldata: string,
-  tokenPoolAddress: string = '0xYOUR_POOL_ADDRESS',
-): SafeTransactionBuilderJSON {
-  const poolInterface = TokenPool__factory.createInterface();
-  const fragment = poolInterface.getFunction('applyChainUpdates');
-
-  // Convert function inputs to Safe Transaction Builder format
-  const contractInputs = fragment.inputs.map((input) => ({
-    name: input.name,
-    type: input.type,
-    internalType: input.format('full'),
-  }));
-
-  const transaction: SafeTransactionBuilderTransaction = {
-    to: tokenPoolAddress,
-    value: '0',
-    data: calldata,
-    contractMethod: {
-      inputs: contractInputs,
-      name: fragment.name,
-      payable: false,
-    },
-    contractInputsValues: null, // We don't need to include the actual values as they're in the calldata
-  };
-
-  return {
-    version: '1.0',
-    chainId,
-    createdAt: Date.now(),
-    meta: {
-      name: 'Token Pool Chain Updates',
-      description: 'Apply chain updates to the Token Pool contract',
-      txBuilderVersion: '1.18.0',
-      createdFromSafeAddress: safeAddress,
-      createdFromOwnerAddress: ownerAddress,
-    },
-    transactions: [transaction],
-  };
-}
-
-/**
- * Generates calldata for the applyChainUpdates function
+ * Generates a transaction for applying chain updates
  * @param inputJson - The input JSON string containing chain updates
- * @returns The encoded function calldata
+ * @returns The Safe transaction data
  */
-export async function generateChainUpdateCalldata(inputJson: string): Promise<string> {
+export async function generateChainUpdateTransaction(
+  inputJson: string,
+): Promise<SafeTransactionDataBase> {
   let parsedInput: ChainUpdatesInput;
 
   try {
     // Parse and validate the input JSON
-    const rawInput = JSON.parse(inputJson) as unknown;
-    parsedInput = await chainUpdatesInputSchema.parseAsync(rawInput);
+    parsedInput = await chainUpdatesInputSchema.parseAsync(JSON.parse(inputJson));
 
     logger.info('Successfully validated chain updates input', {
       chainsToRemoveCount: parsedInput[0].length,
@@ -167,21 +91,69 @@ export async function generateChainUpdateCalldata(inputJson: string): Promise<st
 
     // Create the contract interface and encode the function call
     const poolInterface = TokenPool__factory.createInterface();
-    const calldata = poolInterface.encodeFunctionData('applyChainUpdates', [
+    const data = poolInterface.encodeFunctionData('applyChainUpdates', [
       chainSelectorsToRemove,
       chainsToAdd.map(convertToContractFormat),
     ]);
 
-    logger.info('Successfully generated chain update calldata', {
-      calldataLength: calldata.length,
-    });
+    logger.info('Successfully generated chain update transaction');
 
-    return calldata;
+    return {
+      to: '', // To be filled by the caller
+      value: '0',
+      data,
+      operation: SafeOperationType.Call,
+    };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error('Failed to generate calldata', { error });
-      throw new ChainUpdateError(`Failed to generate calldata: ${error.message}`);
+      logger.error('Failed to generate transaction', { error });
+      throw new ChainUpdateError(`Failed to generate transaction: ${error.message}`);
     }
     throw error;
   }
+}
+
+/**
+ * Creates a Safe Transaction Builder JSON for the chain updates
+ * @param transaction - The Safe transaction data
+ * @param metadata - The Safe metadata
+ * @returns The Safe Transaction Builder JSON
+ */
+export function createChainUpdateJSON(
+  transaction: SafeTransactionDataBase,
+  metadata: SafeChainUpdateMetadata,
+): SafeTransactionBuilderJSON {
+  const poolInterface = TokenPool__factory.createInterface();
+  const methodFragment = poolInterface.getFunction('applyChainUpdates');
+
+  return {
+    version: '1.0',
+    chainId: metadata.chainId,
+    createdAt: Date.now(),
+    meta: {
+      name: 'Token Pool Chain Updates',
+      description: 'Apply chain updates to the Token Pool contract',
+      txBuilderVersion: SAFE_TX_BUILDER_VERSION,
+      createdFromSafeAddress: metadata.safeAddress,
+      createdFromOwnerAddress: metadata.ownerAddress,
+    },
+    transactions: [
+      {
+        to: metadata.tokenPoolAddress,
+        value: transaction.value,
+        data: transaction.data,
+        operation: transaction.operation,
+        contractMethod: {
+          inputs: methodFragment.inputs.map((input) => ({
+            name: input.name,
+            type: input.type,
+            internalType: input.type,
+          })),
+          name: methodFragment.name,
+          payable: methodFragment.payable,
+        },
+        contractInputsValues: null,
+      },
+    ],
+  };
 }
