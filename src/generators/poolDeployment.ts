@@ -1,6 +1,11 @@
 import { ethers } from 'ethers';
 import { BYTECODES } from '../constants/bytecodes';
-import { PoolDeploymentParams, poolDeploymentParamsSchema } from '../types/poolDeployment';
+import {
+  PoolDeploymentParams,
+  poolDeploymentParamsSchema,
+  ContractRemoteTokenPoolInfo,
+  RemoteTokenPoolInfo,
+} from '../types/poolDeployment';
 import {
   SafeMetadata,
   SafeTransactionDataBase,
@@ -9,6 +14,7 @@ import {
   SafeOperationType,
 } from '../types/safe';
 import { TokenPoolFactory__factory } from '../typechain';
+import { poolTypeToNumber } from '../utils/poolTypeConverter';
 import logger from '../utils/logger';
 
 export class PoolDeploymentError extends Error {
@@ -22,22 +28,16 @@ export class PoolDeploymentError extends Error {
  * Generates a deployment transaction for pool only using TokenPoolFactory
  * @param inputJson - The input JSON string containing deployment parameters
  * @param factoryAddress - The address of the TokenPoolFactory contract
- * @param tokenAddress - The address of the existing token
  * @param salt - The salt to use for create2 deployment (required)
  * @returns The Safe transaction data
  */
 export async function generatePoolDeploymentTransaction(
   inputJson: string,
   factoryAddress: string,
-  tokenAddress: string,
   salt: string,
 ): Promise<SafeTransactionDataBase> {
   if (!ethers.isAddress(factoryAddress)) {
     throw new PoolDeploymentError('Invalid factory address');
-  }
-
-  if (!ethers.isAddress(tokenAddress)) {
-    throw new PoolDeploymentError('Invalid token address');
   }
 
   if (!salt) {
@@ -47,10 +47,12 @@ export async function generatePoolDeploymentTransaction(
   let parsedInput: PoolDeploymentParams;
 
   try {
-    parsedInput = await poolDeploymentParamsSchema.parseAsync(JSON.parse(inputJson));
+    // Parse and validate the input JSON
+    const rawInput = JSON.parse(inputJson) as unknown;
+    parsedInput = await poolDeploymentParamsSchema.parseAsync(rawInput);
     logger.info('Successfully validated pool deployment input', {
       poolType: parsedInput.poolType,
-      token: parsedInput.poolParams.token,
+      token: parsedInput.token,
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -61,22 +63,34 @@ export async function generatePoolDeploymentTransaction(
   }
 
   try {
-    // Get remote token pools from input (defaults to empty array if not provided)
-    const remoteTokenPools = parsedInput.remoteTokenPools;
-
     // Get the factory interface
     const factoryInterface = TokenPoolFactory__factory.createInterface();
 
-    // Encode the function call to deployTokenPoolWithExistingToken
-    const data = factoryInterface.encodeFunctionData('deployTokenPoolWithExistingToken', [
-      tokenAddress,
-      parsedInput.poolParams.decimals,
-      remoteTokenPools,
+    // Convert pool type enum to contract value
+    const poolTypeValue = poolTypeToNumber(parsedInput.poolType);
+
+    // Convert remote token pools' pool types to contract values
+    const remoteTokenPools: ContractRemoteTokenPoolInfo[] = parsedInput.remoteTokenPools.map(
+      (pool: RemoteTokenPoolInfo) => ({
+        ...pool,
+        poolType: poolTypeToNumber(pool.poolType),
+      }),
+    );
+
+    // Get the appropriate pool bytecode
+    const poolBytecode =
       parsedInput.poolType === 'BurnMintTokenPool'
         ? BYTECODES.BURN_MINT_TOKEN_POOL
-        : BYTECODES.LOCK_RELEASE_TOKEN_POOL,
-      ethers.id(salt), // Convert string salt to bytes32
-      parsedInput.poolType === 'BurnMintTokenPool' ? 0 : 1, // PoolType enum
+        : BYTECODES.LOCK_RELEASE_TOKEN_POOL;
+
+    // Encode the function call to deployTokenPoolWithExistingToken
+    const data = factoryInterface.encodeFunctionData('deployTokenPoolWithExistingToken', [
+      parsedInput.token,
+      parsedInput.decimals,
+      remoteTokenPools,
+      poolBytecode,
+      salt,
+      poolTypeValue,
     ]);
 
     logger.info('Successfully generated pool deployment transaction');
@@ -85,7 +99,7 @@ export async function generatePoolDeploymentTransaction(
       to: factoryAddress,
       value: '0',
       data,
-      operation: SafeOperationType.Call, // Regular call, not delegatecall
+      operation: SafeOperationType.Call,
     };
   } catch (error) {
     if (error instanceof Error) {
@@ -120,7 +134,7 @@ export function createPoolDeploymentJSON(
     createdAt: Date.now(),
     meta: {
       name: `Pool Factory Deployment - ${params.poolType}`,
-      description: `Deploy ${params.poolType} for token at ${params.poolParams.token} using factory`,
+      description: `Deploy ${params.poolType} for token at ${params.token} using factory`,
       txBuilderVersion: SAFE_TX_BUILDER_VERSION,
       createdFromSafeAddress: metadata.safeAddress,
       createdFromOwnerAddress: metadata.ownerAddress,
@@ -140,7 +154,7 @@ export function createPoolDeploymentJSON(
           name: methodFragment.name,
           payable: methodFragment.payable,
         },
-        contractInputsValues: null, // The data field already contains the encoded function call
+        contractInputsValues: null,
       },
     ],
   };

@@ -58,9 +58,7 @@ interface TokenDeploymentOptions extends BaseDeploymentOptions {}
 /**
  * Options for pool deployment command
  */
-interface PoolDeploymentOptions extends BaseDeploymentOptions {
-  tokenAddress: string; // Token address (required for pool deployment)
-}
+interface PoolDeploymentOptions extends BaseDeploymentOptions {}
 
 function createProgram(): Command {
   return new Command()
@@ -233,9 +231,7 @@ async function handlePoolDeployment(options: PoolDeploymentOptions): Promise<voi
     if (!ethers.isAddress(options.deployer)) {
       throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
     }
-    if (!ethers.isAddress(options.tokenAddress)) {
-      throw new Error(`Invalid token address: ${String(options.tokenAddress)}`);
-    }
+
     if (!options.salt) {
       throw new Error('Salt is required');
     }
@@ -248,7 +244,6 @@ async function handlePoolDeployment(options: PoolDeploymentOptions): Promise<voi
     const transaction = await generatePoolDeploymentTransaction(
       inputJson,
       options.deployer,
-      options.tokenAddress,
       options.salt,
     );
 
@@ -346,7 +341,6 @@ program
   .description('Generate deployment transaction for TokenPool')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
   .requiredOption('-d, --deployer <address>', 'TokenPoolFactory contract address')
-  .requiredOption('-t, --token-address <address>', 'Token address')
   .requiredOption('--salt <bytes32>', 'Salt for create2')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
