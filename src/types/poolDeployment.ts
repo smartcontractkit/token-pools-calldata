@@ -1,38 +1,54 @@
 import { z } from 'zod';
-import { remoteTokenPoolInfoSchema } from './tokenDeployment';
+import { ethers } from 'ethers';
 
-// Pool type discriminator
+// Pool type discriminator (matches contract's PoolType enum)
 export const poolTypeSchema = z.enum(['BurnMintTokenPool', 'LockReleaseTokenPool']);
 
-// Default pool type
-export const DEFAULT_POOL_TYPE = 'BurnMintTokenPool';
-
-// Common pool parameters
-const basePoolParamsSchema = z.object({
-  token: z.string(),
-  decimals: z.number(),
-  allowlist: z.array(z.string()),
-  owner: z.string(),
-  ccipRouter: z.string(),
+// Schema for rate limiter configuration
+export const rateLimiterConfigSchema = z.object({
+  isEnabled: z.boolean(),
+  capacity: z.string(), // BigNumber as string
+  rate: z.string(), // BigNumber as string
 });
 
-// BurnMintTokenPool specific parameters
-export const burnMintTokenPoolParamsSchema = basePoolParamsSchema;
-
-// LockReleaseTokenPool specific parameters
-export const lockReleaseTokenPoolParamsSchema = basePoolParamsSchema.extend({
-  armProxy: z.string(),
-  acceptLiquidity: z.boolean().optional().default(true),
+// Schema for remote chain configuration
+export const remoteChainConfigSchema = z.object({
+  remotePoolFactory: z.string(),
+  remoteRouter: z.string(),
+  remoteRMNProxy: z.string(),
+  remoteTokenDecimals: z.number(),
 });
 
-// Combined pool deployment parameters
-export const poolDeploymentParamsSchema = z.object({
+// Schema for remote token pool information (user input)
+export const remoteTokenPoolInfoSchema = z.object({
+  remoteChainSelector: z.string(), // BigNumber as string
+  remotePoolAddress: z.string(),
+  remotePoolInitCode: z.string(),
+  remoteChainConfig: remoteChainConfigSchema,
   poolType: poolTypeSchema,
-  poolParams: z.union([burnMintTokenPoolParamsSchema, lockReleaseTokenPoolParamsSchema]),
+  remoteTokenAddress: z.string(),
+  remoteTokenInitCode: z.string(),
+  rateLimiterConfig: rateLimiterConfigSchema,
+});
+
+// Schema for pool deployment parameters (matches contract function parameters)
+export const poolDeploymentParamsSchema = z.object({
+  token: z.string().refine(
+    (address) => ethers.isAddress(address),
+    (val) => ({ message: `Invalid token address: ${val}` }),
+  ),
+  decimals: z.number(),
   remoteTokenPools: z.array(remoteTokenPoolInfoSchema).optional().default([]),
+  poolType: poolTypeSchema,
 });
 
 export type PoolType = z.infer<typeof poolTypeSchema>;
-export type BurnMintTokenPoolParams = z.infer<typeof burnMintTokenPoolParamsSchema>;
-export type LockReleaseTokenPoolParams = z.infer<typeof lockReleaseTokenPoolParamsSchema>;
+export type RateLimiterConfig = z.infer<typeof rateLimiterConfigSchema>;
+export type RemoteChainConfig = z.infer<typeof remoteChainConfigSchema>;
+export type RemoteTokenPoolInfo = z.infer<typeof remoteTokenPoolInfoSchema>;
 export type PoolDeploymentParams = z.infer<typeof poolDeploymentParamsSchema>;
+
+// Contract-specific types (with numeric pool type)
+export type ContractRemoteTokenPoolInfo = Omit<RemoteTokenPoolInfo, 'poolType'> & {
+  poolType: number;
+};
