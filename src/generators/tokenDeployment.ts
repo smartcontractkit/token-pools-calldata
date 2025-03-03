@@ -9,6 +9,7 @@ import {
   SafeMetadata,
 } from '../types/safe';
 import { TokenPoolFactory__factory, FactoryBurnMintERC20__factory } from '../typechain';
+import { computeCreate2Address } from '../utils/addressComputer';
 import logger from '../utils/logger';
 
 export class TokenDeploymentError extends Error {
@@ -23,15 +24,21 @@ export class TokenDeploymentError extends Error {
  * @param inputJson - The input JSON string containing deployment parameters
  * @param factoryAddress - The address of the TokenPoolFactory contract
  * @param salt - The salt to use for create2 deployment (required)
+ * @param safeAddress - The address of the Safe that will execute the transaction
  * @returns The Safe transaction data
  */
 export async function generateTokenAndPoolDeployment(
   inputJson: string,
   factoryAddress: string,
   salt: string,
+  safeAddress: string,
 ): Promise<SafeTransactionDataBase> {
   if (!ethers.isAddress(factoryAddress)) {
     throw new TokenDeploymentError('Invalid factory address');
+  }
+
+  if (!ethers.isAddress(safeAddress)) {
+    throw new TokenDeploymentError('Invalid Safe address');
   }
 
   if (!salt) {
@@ -56,7 +63,6 @@ export async function generateTokenAndPoolDeployment(
 
   try {
     // For now, we'll use an empty array for remoteTokenPools
-    // This should be expanded based on requirements
     const remoteTokenPools = parsedInput.remoteTokenPools;
 
     // Get the factory interface
@@ -83,6 +89,34 @@ export async function generateTokenAndPoolDeployment(
     // Get the appropriate pool bytecode based on pool type
     const tokenPoolInitCode = BYTECODES.BURN_MINT_TOKEN_POOL;
 
+    // Compute deterministic addresses
+    const tokenAddress = computeCreate2Address(factoryAddress, tokenInitCode, salt, safeAddress);
+
+    // Encode pool constructor args
+    const poolConstructorArgs = ethers.AbiCoder.defaultAbiCoder().encode(
+      ['address', 'uint8', 'address[]', 'address', 'address'],
+      [
+        tokenAddress,
+        parsedInput.decimals,
+        [],
+        process.env.RMN_PROXY_ADDRESS || '0x0',
+        process.env.CCIP_ROUTER_ADDRESS || '0x0',
+      ],
+    );
+
+    const poolBytecode = ethers.solidityPacked(
+      ['bytes', 'bytes'],
+      [tokenPoolInitCode, poolConstructorArgs],
+    );
+
+    const poolAddress = computeCreate2Address(factoryAddress, poolBytecode, salt, safeAddress);
+
+    logger.info('Computed deterministic addresses', {
+      tokenAddress,
+      poolAddress,
+      salt,
+    });
+
     // Encode the function call to deployTokenAndTokenPool
     const data = factoryInterface.encodeFunctionData('deployTokenAndTokenPool', [
       remoteTokenPools,
@@ -98,7 +132,7 @@ export async function generateTokenAndPoolDeployment(
       to: factoryAddress,
       value: '0',
       data,
-      operation: SafeOperationType.Call, // Regular call, not delegatecall
+      operation: SafeOperationType.Call,
     };
   } catch (error) {
     if (error instanceof Error) {

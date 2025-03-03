@@ -46,6 +46,7 @@ interface ChainUpdateOptions extends BaseOptions {
 interface BaseDeploymentOptions extends BaseOptions {
   deployer: string; // TokenPoolFactory contract address
   salt: string;
+  safe: string;
 }
 
 /**
@@ -166,6 +167,7 @@ async function handleTokenDeployment(options: TokenDeploymentOptions): Promise<v
       inputJson,
       options.deployer,
       options.salt,
+      options.safe,
     );
 
     // Parse input JSON for Safe JSON format
