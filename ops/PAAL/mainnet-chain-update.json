@@ -1,0 +1,22 @@
+[
+  [],
+  [
+    {
+      "remoteChainSelector": "15971525489660198786",
+      "remoteChainMeta": "Base",
+      "remotePoolAddresses": [
+        "0x5192bd10f28a0206211ccbb66671118f85c2e539"      ],
+      "remoteTokenAddress": "0xd52333441c0553facb259600fa833a69186893a5",
+      "outboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      },
+      "inboundRateLimiterConfig": {
+        "isEnabled": false,
+        "capacity": "0",
+        "rate": "0"
+      }
+    }
+  ]
+]
