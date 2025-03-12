@@ -10,4 +10,4 @@ pnpm start generate-pool-deployment  -i ops/PAAL/paal-mainnet-pool-deployment.js
 ## Mainnet
 pnpm start generate-chain-update  -i ops/PAAL/mainnet-chain-update.json -p 0x1A4B0621E90Bdc61d341D89158863458CA745dA2  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 1   -o  ops/PAAL/output/mainnet-chain-update.json
 ## Base
-pnpm start generate-chain-update  -i ops/PAAL/mainnet-chain-update.json -p 0x5192bd10f28a0206211ccbb66671118f85c2e539  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 8543   -o  ops/PAAL/output/base-chain-update.json
+pnpm start generate-chain-update  -i ops/PAAL/base-chain-update.json -p 0x5192bd10f28a0206211ccbb66671118f85c2e539  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 8453   -o  ops/PAAL/output/base-chain-update.json
