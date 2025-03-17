@@ -1,0 +1,56 @@
+[
+    [],
+    [
+      {
+        "remoteChainSelector": "6433500567565415381",
+        "remoteChainMeta": "Avax",
+        "remotePoolAddresses": [
+          "0xf68fc9cce79df9719c9801d345ffa38ecdccad35"],
+        "remoteTokenAddress": "0xfd91ed44fc13f7faff758fe6d339d5790c4a85ec",
+        "outboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        },
+        "inboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        }
+      },
+      {
+        "remoteChainSelector": "1556008542357238666",
+        "remoteChainMeta": "Mantle",
+        "remotePoolAddresses": [
+          "0x06aa321d88e5bc62ca86c54342caefa6f19fe526"],
+        "remoteTokenAddress": "0xd0728f5b1f53a834f8dcd1b86f62ceb8726eb0a0",
+        "outboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        },
+        "inboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        }
+      },      
+      {
+        "remoteChainSelector": "1673871237479749969",
+        "remoteChainMeta": "Sonic",
+        "remotePoolAddresses": [
+          "0x293325b3aace7322beb03400e302612a2fc5a4e8"],
+        "remoteTokenAddress": "0xad747e3cf4e31b8897b96c81c6c74152de52f614",
+        "outboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        },
+        "inboundRateLimiterConfig": {
+          "isEnabled": false,
+          "capacity": "0",
+          "rate": "0"
+        }
+      }
+    ]
+]
