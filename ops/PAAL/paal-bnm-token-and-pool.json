@@ -1,0 +1,8 @@
+{
+  "name": "PAAL AI",
+  "symbol": "$PAAL",
+  "decimals": 18,
+  "maxSupply": "1000000000000000000000000000",
+  "preMint": "0",
+  "remoteTokenPools": []
+}
