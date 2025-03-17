@@ -11,3 +11,8 @@ pnpm start generate-pool-deployment  -i ops/PAAL/paal-mainnet-pool-deployment.js
 pnpm start generate-chain-update  -i ops/PAAL/mainnet-chain-update.json -p 0x1A4B0621E90Bdc61d341D89158863458CA745dA2  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 1   -o  ops/PAAL/output/mainnet-chain-update.json
 ## Base
 pnpm start generate-chain-update  -i ops/PAAL/base-chain-update.json -p 0x5192bd10f28a0206211ccbb66671118f85c2e539  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 8453   -o  ops/PAAL/output/base-chain-update.json
+
+### All 3 pools (base, bsc, mainnet)
+pnpm start generate-chain-update  -i ops/PAAL/add-bnb-apply-chain-updates.json -p 0x5192bd10f28a0206211ccbb66671118f85c2e539  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 8453   -o  ops/PAAL/output/add-bnb-base.json
+pnpm start generate-chain-update  -i ops/PAAL/add-bnb-apply-chain-updates.json -p 0x1A4B0621E90Bdc61d341D89158863458CA745dA2  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 1   -o  ops/PAAL/output/add-bnb-mainnet.json
+pnpm start generate-chain-update  -i ops/PAAL/3-chain-apply-update.json -p 0xe4de5151ed60aa2086172c4caec29f058d16e46e  -f safe-json  -s 0xEC8Bb965099d3563d337E903765201A79f631Cba   -w 0xEC8Bb965099d3563d337E903765201A79f631Cba   -c 56   -o  ops/PAAL/output/bnb-3-chain-update.json
