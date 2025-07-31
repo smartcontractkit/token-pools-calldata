@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+export enum ChainType {
+  EVM = 'evm',
+  SVM = 'svm',
+  MVM = 'mvm',
+}
+
 // Schema for rate limiter configuration
 export const rateLimiterConfigSchema = z.object({
   isEnabled: z.boolean(),
@@ -14,6 +20,8 @@ export const chainUpdateSchema = z.object({
   remoteTokenAddress: z.string(), // Address
   outboundRateLimiterConfig: rateLimiterConfigSchema,
   inboundRateLimiterConfig: rateLimiterConfigSchema,
+  // @TODO dev = mvm not implemented
+  remoteChainType: z.nativeEnum(ChainType), // needed to validate addresses.
 });
 
 // Schema for the entire chain updates input

@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import { TokenPool__factory, TokenPool } from '../typechain';
+import { PublicKey } from '@solana/web3.js';
 import {
+  ChainType,
   ChainUpdateInput,
   ChainUpdatesInput,
   chainUpdatesInputSchema,
@@ -22,18 +24,49 @@ export class ChainUpdateError extends Error {
 }
 
 /**
- * Converts a validated chain update input to the contract-ready format
+ * Converts a validated chain update input to the contract-ready format. Supports EVM as source chain, and select non EVM remote chains.
  */
-function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.ChainUpdateStruct {
+export function convertToContractFormat(
+  chainUpdate: ChainUpdateInput,
+): TokenPool.ChainUpdateStruct {
   const abiCoder = new ethers.AbiCoder();
 
+  if (![ChainType.MVM, ChainType.EVM, ChainType.SVM].includes(chainUpdate.remoteChainType)) {
+    throw `convertToContractFormat(): Invalid ChainType provided: '${chainUpdate.remoteChainType}'.`;
+  }
+
+  if (chainUpdate.remoteChainType === ChainType.MVM) {
+    throw ' convertToContractFormat(): Move Virtual Machine Address validation not implemented.';
+  }
+
+  let remotePoolAddresses: string[] = [];
+  let remoteTokenAddress: string = '';
   try {
+    if (chainUpdate.remoteChainType === ChainType.EVM) {
+      remotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) =>
+        abiCoder.encode(['address'], [address]),
+      );
+      remoteTokenAddress = abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]);
+    }
+
+    if (chainUpdate.remoteChainType === ChainType.SVM) {
+      // Validate and encode Solana addresses as bytes32
+      remotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) => {
+        const pubkey = new PublicKey(address);
+        return abiCoder.encode(['bytes32'], ['0x' + pubkey.toBuffer().toString('hex')]);
+      });
+
+      const tokenPubkey = new PublicKey(chainUpdate.remoteTokenAddress);
+      remoteTokenAddress = abiCoder.encode(
+        ['bytes32'],
+        ['0x' + tokenPubkey.toBuffer().toString('hex')],
+      );
+    }
+
     return {
       remoteChainSelector: chainUpdate.remoteChainSelector,
-      remotePoolAddresses: chainUpdate.remotePoolAddresses.map((address) =>
-        abiCoder.encode(['address'], [address]),
-      ),
-      remoteTokenAddress: abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]),
+      remotePoolAddresses,
+      remoteTokenAddress,
       outboundRateLimiterConfig: {
         isEnabled: chainUpdate.outboundRateLimiterConfig.isEnabled,
         capacity: chainUpdate.outboundRateLimiterConfig.capacity,
@@ -61,7 +94,7 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
 
 /**
  * Generates a transaction for applying chain updates
- * @param inputJson - The input JSON string containing chain updates
+ * @param inputJson - The input JSON string containing chain updates.  Supports EVM as source chain, and select non EVM remote chains.
  * @returns The Safe transaction data
  */
 export async function generateChainUpdateTransaction(

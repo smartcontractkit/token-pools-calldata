@@ -17,7 +17,8 @@
         "isEnabled": true,
         "capacity": "1000000",
         "rate": "100000"
-      }
+      },
+      "remoteChainType": "evm"
     },
     {
       "remoteChainSelector": "3478487238524512106",
