@@ -36,7 +36,7 @@ export function convertToContractFormat(
   }
 
   if (chainUpdate.remoteChainType === ChainType.MVM) {
-    throw ' convertToContractFormat(): Move Virtual Machine Address validation not implemented.';
+    throw ' convertToContractFormat(): Move Virtual Machine Address validation not implemented.'; // TODO @dev
   }
 
   let remotePoolAddresses: string[] = [];

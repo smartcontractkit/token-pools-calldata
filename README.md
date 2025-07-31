@@ -1,6 +1,12 @@
 # Token Pools Calldata Generator
 
-A tool to generate calldata for TokenPool contract interactions, including token and pool deployment, and chain updates. Supports both raw calldata and Safe Transaction Builder JSON formats.
+A tool to generate calldata for TokenPool contract interactions, including token and pool deployment, and chain updates. Supports both raw calldata and Safe Transaction Builder JSON formats with multi-destination-chain support.
+
+## Features
+
+- **Multi Destination Chain Support**: Supports EVM --> EVM and EVM --> SVM chains. Move VM is TODO.
+- **Cross-Chain Token Pools**: Configure token pools across different blockchain architectures
+- **Multiple Output Formats**: Raw calldata or Safe Transaction Builder JSON
 
 ## Prerequisites
 
@@ -160,12 +166,14 @@ Create a JSON file with the chain update parameters (e.g., `examples/chain-updat
 
 ```json
 [
-  [], // Array of chain selectors to remove
+  [],
   [
-    // Array of chain updates to add
     {
       "remoteChainSelector": "12532609583862916517",
-      "remotePoolAddresses": ["0x779877A7B0D9E8603169DdbD7836e478b4624789"],
+      "remotePoolAddresses": [
+        "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+        "0x1234567890123456789012345678901234567890"
+      ],
       "remoteTokenAddress": "0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05",
       "outboundRateLimiterConfig": {
         "isEnabled": true,
@@ -176,11 +184,30 @@ Create a JSON file with the chain update parameters (e.g., `examples/chain-updat
         "isEnabled": true,
         "capacity": "1000000",
         "rate": "100000"
-      }
+      },
+      "remoteChainType": "evm" // could be "svm" etc.
     }
   ]
 ]
 ```
+
+##### Chain Update Fields
+
+Each chain update object requires:
+
+- `remoteChainSelector`: Unique identifier for the remote chain.
+- `remotePoolAddresses`: Array of pool addresses on the remote chain.
+- `remoteTokenAddress`: Token address on the remote chain.
+- `outboundRateLimiterConfig`: Rate limiter for outbound transfers.
+- `inboundRateLimiterConfig`: Rate limiter for inbound transfers.
+- `remoteChainType`: Chain type: `"evm"` or `"svm"`. As per one of the enum set out in `/src/types/chainUpdate.ts`.
+
+##### Address Formats by Chain Type
+
+- **EVM**: Standard Ethereum addresses (20 bytes, hex format).
+  - Example: `"0x779877A7B0D9E8603169DdbD7836e478b4624789"`
+- **SVM**: Solana public keys (32 bytes, base58 format).
+  - Example: `"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"`
 
 #### Generate Chain Update Transaction
 
@@ -302,10 +329,10 @@ pnpm typechain
 
 ## Error Handling
 
-The tool validates input JSON against a schema and provides detailed error messages for:
+The tool validates input JSON and provides detailed error messages for:
 
 - Invalid JSON format
-- Invalid Ethereum addresses
+- Invalid EVM or SVM addresses (for EVM chains)
 - Invalid rate limiter configurations
 - Missing required fields
 - Missing required parameters for Safe Transaction Builder JSON

@@ -95,9 +95,10 @@ describe('convertToContractFormat', () => {
     it('should throw error for undefined ChainType', () => {
       const chainUpdate = {
         ...baseChainUpdateStub,
-        remoteChainType: undefined as any,
+        remoteChainType: undefined,
       };
 
+      // @ts-expect-error test when undefined as ChainType. Undefined will not satisfy arg of ChainUpdateInput type.
       expect(() => convertToContractFormat(chainUpdate)).toThrow(/Invalid ChainType provided/);
     });
   });
