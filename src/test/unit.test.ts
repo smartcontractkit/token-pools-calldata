@@ -54,8 +54,9 @@ describe('convertToContractFormat', () => {
       expect(result.remoteChainSelector).toBe('12532609583862916517');
       expect(result.remotePoolAddresses).toHaveLength(1);
       expect(result.remoteTokenAddress).toBeDefined();
-      // Should encode as bytes32 for SVM (longer than EVM addresses)
-      expect(result.remoteTokenAddress.length).toBeGreaterThan(42); // Longer than EVM address
+
+      const EVM_HEX_LENGTH = 42;
+      expect(result.remoteTokenAddress.length).toBeGreaterThan(EVM_HEX_LENGTH); // Longer than EVM address
     });
 
     it('should throw error for invalid Solana addresses', () => {
@@ -103,11 +104,12 @@ describe('convertToContractFormat', () => {
     });
   });
 });
+
 describe('generateChainUpdateTransaction', () => {
   describe('EVM Chain Type', () => {
     it('should generate transaction for EVM chain updates', async () => {
       const inputJson = JSON.stringify([
-        [],
+        [], // Chain selectors to remove. See `chainUpdatesInputSchema`
         [
           {
             remoteChainSelector: '12532609583862916517',
@@ -126,7 +128,7 @@ describe('generateChainUpdateTransaction', () => {
               capacity: '1000000',
               rate: '100000',
             },
-            remoteChainType: 'evm',
+            remoteChainType: ChainType.EVM,
           },
         ],
       ]);
@@ -136,9 +138,9 @@ describe('generateChainUpdateTransaction', () => {
       expect(result).toHaveProperty('to', '');
       expect(result).toHaveProperty('value', '0');
       expect(result).toHaveProperty('data');
-      expect(result).toHaveProperty('operation', SafeOperationType.Call);
-      expect(result.data).toMatch(/^0x[a-fA-F0-9]+$/);
+      expect(result.data).toMatch(/^0x[a-fA-F0-9]+$/); //  hex string.
       expect(result.data.length).toBeGreaterThan(10);
+      expect(result).toHaveProperty('operation', SafeOperationType.Call);
     });
   });
 });
