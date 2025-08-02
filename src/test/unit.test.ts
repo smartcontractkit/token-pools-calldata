@@ -7,7 +7,7 @@ import { SafeOperationType } from '../types/safe';
 import { ChainType, ChainUpdateInput } from '../types/chainUpdate';
 
 describe('convertToContractFormat', () => {
-  const baseChainUpdateStub = {
+  const baseChainUpdateStub: Partial<ChainUpdateInput> = {
     remoteChainSelector: '12532609583862916517',
     remotePoolAddresses: ['0x779877A7B0D9E8603169DdbD7836e478b4624789'],
     remoteTokenAddress: '0xFd57b4ddBf88a4e07fF4e34C487b99af2Fe82a05',
@@ -25,10 +25,10 @@ describe('convertToContractFormat', () => {
 
   describe('Explicity EVM Chain Type', () => {
     it('should handle ChainType.EVM correctly', () => {
-      const chainUpdate: ChainUpdateInput = {
+      const chainUpdate = {
         ...baseChainUpdateStub,
         remoteChainType: ChainType.EVM,
-      };
+      } as ChainUpdateInput;
 
       const result = convertToContractFormat(chainUpdate);
 
@@ -42,12 +42,12 @@ describe('convertToContractFormat', () => {
 
   describe('SVM Chain Type', () => {
     it('should handle ChainType.SVM correctly', () => {
-      const chainUpdate: ChainUpdateInput = {
+      const chainUpdate = {
         ...baseChainUpdateStub,
         remotePoolAddresses: ['11111111111111111111111111111112'], // Valid Solana address
         remoteTokenAddress: 'So11111111111111111111111111111111111111112', // Valid Solana token
         remoteChainType: ChainType.SVM,
-      };
+      } as ChainUpdateInput;
 
       const result = convertToContractFormat(chainUpdate);
 
@@ -59,11 +59,11 @@ describe('convertToContractFormat', () => {
     });
 
     it('should throw error for invalid Solana addresses', () => {
-      const chainUpdate: ChainUpdateInput = {
+      const chainUpdate = {
         ...baseChainUpdateStub,
         remotePoolAddresses: ['invalid-solana-address'],
         remoteChainType: ChainType.SVM,
-      };
+      } as ChainUpdateInput;
 
       expect(() => convertToContractFormat(chainUpdate)).toThrow(ChainUpdateError);
     });
@@ -71,10 +71,10 @@ describe('convertToContractFormat', () => {
 
   describe('MVM Chain Type', () => {
     it('should throw error for ChainType.MVM (not implemented)', () => {
-      const chainUpdate: ChainUpdateInput = {
+      const chainUpdate = {
         ...baseChainUpdateStub,
         remoteChainType: ChainType.MVM,
-      };
+      } as ChainUpdateInput;
 
       expect(() => convertToContractFormat(chainUpdate)).toThrow(
         /Move Virtual Machine Address validation not implemented/,
@@ -87,7 +87,7 @@ describe('convertToContractFormat', () => {
       const chainUpdate = {
         ...baseChainUpdateStub,
         remoteChainType: 'fakeVM' as ChainType, // Forced casting to ChainType
-      };
+      } as ChainUpdateInput;
 
       expect(() => convertToContractFormat(chainUpdate)).toThrow(/Invalid ChainType provided/);
     });
