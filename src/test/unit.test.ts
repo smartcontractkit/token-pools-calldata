@@ -23,7 +23,7 @@ describe('convertToContractFormat', () => {
     },
   };
 
-  describe('Explicity EVM Chain Type', () => {
+  describe('Explicit EVM Chain Type', () => {
     it('should handle ChainType.EVM correctly', () => {
       const chainUpdate = {
         ...baseChainUpdateStub,
@@ -138,7 +138,7 @@ describe('generateChainUpdateTransaction', () => {
       expect(result).toHaveProperty('to', '');
       expect(result).toHaveProperty('value', '0');
       expect(result).toHaveProperty('data');
-      expect(result.data).toMatch(/^0x[a-fA-F0-9]+$/); //  hex string.
+      expect(result.data).toMatch(/^0x[a-fA-F0-9]+$/); // hex string.
       expect(result.data.length).toBeGreaterThan(10);
       expect(result).toHaveProperty('operation', SafeOperationType.Call);
     });

@@ -32,32 +32,36 @@ export function convertToContractFormat(
   const abiCoder = new ethers.AbiCoder();
 
   if (![ChainType.MVM, ChainType.EVM, ChainType.SVM].includes(chainUpdate.remoteChainType)) {
-    throw `convertToContractFormat(): Invalid ChainType provided: '${chainUpdate.remoteChainType}'.`;
+    throw new ChainUpdateError(
+      `convertToContractFormat(): Invalid ChainType provided: '${chainUpdate.remoteChainType}'.`,
+    );
   }
 
   if (chainUpdate.remoteChainType === ChainType.MVM) {
-    throw ' convertToContractFormat(): Move Virtual Machine Address validation not implemented.'; // TODO @dev
+    throw new ChainUpdateError(
+      'convertToContractFormat(): Move Virtual Machine Address validation not implemented.',
+    ); // TODO @dev
   }
 
-  let remotePoolAddresses: string[] = [];
-  let remoteTokenAddress: string = '';
+  let encodedRemotePoolAddresses: string[] = [];
+  let encodedRemoteTokenAddress: string = '';
   try {
     if (chainUpdate.remoteChainType === ChainType.EVM) {
-      remotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) =>
+      encodedRemotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) =>
         abiCoder.encode(['address'], [address]),
       );
-      remoteTokenAddress = abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]);
+      encodedRemoteTokenAddress = abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]);
     }
 
     if (chainUpdate.remoteChainType === ChainType.SVM) {
       // Validate and encode Solana addresses as bytes32
-      remotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) => {
+      encodedRemotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) => {
         const pubkey = new PublicKey(address);
         return abiCoder.encode(['bytes32'], ['0x' + pubkey.toBuffer().toString('hex')]);
       });
 
       const tokenPubkey = new PublicKey(chainUpdate.remoteTokenAddress);
-      remoteTokenAddress = abiCoder.encode(
+      encodedRemoteTokenAddress = abiCoder.encode(
         ['bytes32'],
         ['0x' + tokenPubkey.toBuffer().toString('hex')],
       );
@@ -65,8 +69,8 @@ export function convertToContractFormat(
 
     return {
       remoteChainSelector: chainUpdate.remoteChainSelector,
-      remotePoolAddresses,
-      remoteTokenAddress,
+      remotePoolAddresses: encodedRemotePoolAddresses,
+      remoteTokenAddress: encodedRemoteTokenAddress,
       outboundRateLimiterConfig: {
         isEnabled: chainUpdate.outboundRateLimiterConfig.isEnabled,
         capacity: chainUpdate.outboundRateLimiterConfig.capacity,
