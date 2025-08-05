@@ -1,7 +1,6 @@
 import {
   convertToContractFormat,
   generateChainUpdateTransaction,
-  ChainUpdateError,
 } from '../generators/chainUpdateCalldata';
 import { SafeOperationType } from '../types/safe';
 import { ChainType, ChainUpdateInput } from '../types/chainUpdate';
@@ -23,8 +22,8 @@ describe('convertToContractFormat', () => {
     },
   };
 
-  describe('Explicit EVM Chain Type', () => {
-    it('should handle ChainType.EVM correctly', () => {
+  describe('EVM Chain Type', () => {
+    it('should handle explicit ChainType.EVM correctly', () => {
       const chainUpdate = {
         ...baseChainUpdateStub,
         remoteChainType: ChainType.EVM,
@@ -38,10 +37,22 @@ describe('convertToContractFormat', () => {
       // Should encode as address type for EVM
       expect(result.remoteTokenAddress).toMatch(/^0x[a-f0-9]+$/);
     });
+
+    it('should throw error for invalid EVM addresses', () => {
+      const chainUpdate = {
+        ...baseChainUpdateStub,
+        remotePoolAddresses: ['0x12abc1234def'],
+        remoteChainType: ChainType.EVM,
+      } as ChainUpdateInput;
+
+      expect(() => convertToContractFormat(chainUpdate)).toThrow(
+        /Failed to convert remote evm chain update/,
+      );
+    });
   });
 
   describe('SVM Chain Type', () => {
-    it('should handle ChainType.SVM correctly', () => {
+    it('should handle explicit ChainType.SVM correctly', () => {
       const chainUpdate = {
         ...baseChainUpdateStub,
         remotePoolAddresses: ['11111111111111111111111111111112'], // Valid Solana address
@@ -66,7 +77,9 @@ describe('convertToContractFormat', () => {
         remoteChainType: ChainType.SVM,
       } as ChainUpdateInput;
 
-      expect(() => convertToContractFormat(chainUpdate)).toThrow(ChainUpdateError);
+      expect(() => convertToContractFormat(chainUpdate)).toThrow(
+        /Failed to convert remote svm chain update/,
+      );
     });
   });
 

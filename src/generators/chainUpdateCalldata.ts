@@ -23,6 +23,30 @@ export class ChainUpdateError extends Error {
   }
 }
 
+type ChainEncoder = {
+  encodeAddresses: (coder: ethers.AbiCoder, addresses: string[]) => string[];
+  encodeToken: (coder: ethers.AbiCoder, address: string) => string;
+};
+
+const chainEncoders: Record<ChainType.EVM | ChainType.SVM, ChainEncoder> = {
+  [ChainType.EVM]: {
+    encodeAddresses: (coder, addresses) =>
+      addresses.map((addr) => coder.encode(['address'], [addr])),
+    encodeToken: (coder, address) => coder.encode(['address'], [address]),
+  },
+  [ChainType.SVM]: {
+    encodeAddresses: (coder, addresses) =>
+      addresses.map((addr) => {
+        const pubkey = new PublicKey(addr);
+        return coder.encode(['bytes32'], ['0x' + pubkey.toBuffer().toString('hex')]);
+      }),
+    encodeToken: (coder, address) => {
+      const tokenPubkey = new PublicKey(address);
+      return coder.encode(['bytes32'], ['0x' + tokenPubkey.toBuffer().toString('hex')]);
+    },
+  },
+};
+
 /**
  * Converts a validated chain update input to the contract-ready format. Supports EVM as source chain, and select non EVM remote chains.
  */
@@ -31,7 +55,7 @@ export function convertToContractFormat(
 ): TokenPool.ChainUpdateStruct {
   const abiCoder = new ethers.AbiCoder();
 
-  if (![ChainType.MVM, ChainType.EVM, ChainType.SVM].includes(chainUpdate.remoteChainType)) {
+  if (!Object.values(ChainType).includes(chainUpdate.remoteChainType)) {
     throw new ChainUpdateError(
       `convertToContractFormat(): Invalid ChainType provided: '${chainUpdate.remoteChainType}'.`,
     );
@@ -40,56 +64,35 @@ export function convertToContractFormat(
   if (chainUpdate.remoteChainType === ChainType.MVM) {
     throw new ChainUpdateError(
       'convertToContractFormat(): Move Virtual Machine Address validation not implemented.',
-    ); // TODO @dev
+    );
   }
 
-  let encodedRemotePoolAddresses: string[] = [];
-  let encodedRemoteTokenAddress: string = '';
   try {
-    if (chainUpdate.remoteChainType === ChainType.EVM) {
-      encodedRemotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) =>
-        abiCoder.encode(['address'], [address]),
-      );
-      encodedRemoteTokenAddress = abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]);
-    }
-
-    if (chainUpdate.remoteChainType === ChainType.SVM) {
-      // Validate and encode Solana addresses as bytes32
-      encodedRemotePoolAddresses = chainUpdate.remotePoolAddresses.map((address) => {
-        const pubkey = new PublicKey(address);
-        return abiCoder.encode(['bytes32'], ['0x' + pubkey.toBuffer().toString('hex')]);
-      });
-
-      const tokenPubkey = new PublicKey(chainUpdate.remoteTokenAddress);
-      encodedRemoteTokenAddress = abiCoder.encode(
-        ['bytes32'],
-        ['0x' + tokenPubkey.toBuffer().toString('hex')],
-      );
-    }
+    const encoder = chainEncoders[chainUpdate.remoteChainType as ChainType.EVM | ChainType.SVM];
+    const encodedRemotePoolAddresses = encoder.encodeAddresses(
+      abiCoder,
+      chainUpdate.remotePoolAddresses,
+    );
+    const encodedRemoteTokenAddress = encoder.encodeToken(abiCoder, chainUpdate.remoteTokenAddress);
 
     return {
       remoteChainSelector: chainUpdate.remoteChainSelector,
       remotePoolAddresses: encodedRemotePoolAddresses,
       remoteTokenAddress: encodedRemoteTokenAddress,
-      outboundRateLimiterConfig: {
-        isEnabled: chainUpdate.outboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.outboundRateLimiterConfig.capacity,
-        rate: chainUpdate.outboundRateLimiterConfig.rate,
-      },
-      inboundRateLimiterConfig: {
-        isEnabled: chainUpdate.inboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.inboundRateLimiterConfig.capacity,
-        rate: chainUpdate.inboundRateLimiterConfig.rate,
-      },
+      outboundRateLimiterConfig: chainUpdate.outboundRateLimiterConfig,
+      inboundRateLimiterConfig: chainUpdate.inboundRateLimiterConfig,
     };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error('Error converting chain update to contract format', {
-        error,
-        chainUpdate,
-      });
+      logger.error(
+        `Error converting remote ${chainUpdate.remoteChainType} chain update to contract format`,
+        {
+          error,
+          chainUpdate,
+        },
+      );
       throw new ChainUpdateError(
-        `Failed to convert chain update to contract format: ${error.message}`,
+        `Failed to convert remote ${chainUpdate.remoteChainType} chain update to contract format: ${error.message}`,
       );
     }
     throw error;
