@@ -38,11 +38,11 @@ const chainEncoders: Record<ChainType.EVM | ChainType.SVM, ChainEncoder> = {
     encodeAddresses: (coder, addresses) =>
       addresses.map((addr) => {
         const pubkey = new PublicKey(addr);
-        return coder.encode(['bytes32'], ['0x' + pubkey.toBuffer().toString('hex')]);
+        return coder.encode(['bytes32'], [pubkey.toBuffer()]);
       }),
     encodeToken: (coder, address) => {
       const tokenPubkey = new PublicKey(address);
-      return coder.encode(['bytes32'], ['0x' + tokenPubkey.toBuffer().toString('hex')]);
+      return coder.encode(['bytes32'], [tokenPubkey.toBuffer()]);
     },
   },
 };
