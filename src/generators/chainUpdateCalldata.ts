@@ -1,6 +1,8 @@
 import { ethers } from 'ethers';
 import { TokenPool__factory, TokenPool } from '../typechain';
+import { PublicKey } from '@solana/web3.js';
 import {
+  ChainType,
   ChainUpdateInput,
   ChainUpdatesInput,
   chainUpdatesInputSchema,
@@ -21,38 +23,76 @@ export class ChainUpdateError extends Error {
   }
 }
 
+type ChainEncoder = {
+  encodeAddresses: (coder: ethers.AbiCoder, addresses: string[]) => string[];
+  encodeToken: (coder: ethers.AbiCoder, address: string) => string;
+};
+
+const chainEncoders: Record<ChainType.EVM | ChainType.SVM, ChainEncoder> = {
+  [ChainType.EVM]: {
+    encodeAddresses: (coder, addresses) =>
+      addresses.map((addr) => coder.encode(['address'], [addr])),
+    encodeToken: (coder, address) => coder.encode(['address'], [address]),
+  },
+  [ChainType.SVM]: {
+    encodeAddresses: (coder, addresses) =>
+      addresses.map((addr) => {
+        const pubkey = new PublicKey(addr);
+        return coder.encode(['bytes32'], [pubkey.toBuffer()]);
+      }),
+    encodeToken: (coder, address) => {
+      const tokenPubkey = new PublicKey(address);
+      return coder.encode(['bytes32'], [tokenPubkey.toBuffer()]);
+    },
+  },
+};
+
 /**
- * Converts a validated chain update input to the contract-ready format
+ * Converts a validated chain update input to the contract-ready format. Supports EVM as source chain, and select non EVM remote chains.
  */
-function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.ChainUpdateStruct {
+export function convertToContractFormat(
+  chainUpdate: ChainUpdateInput,
+): TokenPool.ChainUpdateStruct {
   const abiCoder = new ethers.AbiCoder();
 
+  if (!Object.values(ChainType).includes(chainUpdate.remoteChainType)) {
+    throw new ChainUpdateError(
+      `convertToContractFormat(): Invalid ChainType provided: '${chainUpdate.remoteChainType}'.`,
+    );
+  }
+
+  if (chainUpdate.remoteChainType === ChainType.MVM) {
+    throw new ChainUpdateError(
+      'convertToContractFormat(): Move Virtual Machine Address validation not implemented.',
+    );
+  }
+
   try {
+    const encoder = chainEncoders[chainUpdate.remoteChainType as ChainType.EVM | ChainType.SVM];
+    const encodedRemotePoolAddresses = encoder.encodeAddresses(
+      abiCoder,
+      chainUpdate.remotePoolAddresses,
+    );
+    const encodedRemoteTokenAddress = encoder.encodeToken(abiCoder, chainUpdate.remoteTokenAddress);
+
     return {
       remoteChainSelector: chainUpdate.remoteChainSelector,
-      remotePoolAddresses: chainUpdate.remotePoolAddresses.map((address) =>
-        abiCoder.encode(['address'], [address]),
-      ),
-      remoteTokenAddress: abiCoder.encode(['address'], [chainUpdate.remoteTokenAddress]),
-      outboundRateLimiterConfig: {
-        isEnabled: chainUpdate.outboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.outboundRateLimiterConfig.capacity,
-        rate: chainUpdate.outboundRateLimiterConfig.rate,
-      },
-      inboundRateLimiterConfig: {
-        isEnabled: chainUpdate.inboundRateLimiterConfig.isEnabled,
-        capacity: chainUpdate.inboundRateLimiterConfig.capacity,
-        rate: chainUpdate.inboundRateLimiterConfig.rate,
-      },
+      remotePoolAddresses: encodedRemotePoolAddresses,
+      remoteTokenAddress: encodedRemoteTokenAddress,
+      outboundRateLimiterConfig: chainUpdate.outboundRateLimiterConfig,
+      inboundRateLimiterConfig: chainUpdate.inboundRateLimiterConfig,
     };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error('Error converting chain update to contract format', {
-        error,
-        chainUpdate,
-      });
+      logger.error(
+        `Error converting remote ${chainUpdate.remoteChainType} chain update to contract format`,
+        {
+          error,
+          chainUpdate,
+        },
+      );
       throw new ChainUpdateError(
-        `Failed to convert chain update to contract format: ${error.message}`,
+        `Failed to convert remote ${chainUpdate.remoteChainType} chain update to contract format: ${error.message}`,
       );
     }
     throw error;
@@ -61,7 +101,7 @@ function convertToContractFormat(chainUpdate: ChainUpdateInput): TokenPool.Chain
 
 /**
  * Generates a transaction for applying chain updates
- * @param inputJson - The input JSON string containing chain updates
+ * @param inputJson - The input JSON string containing chain updates.  Supports EVM as source chain, and select non EVM remote chains.
  * @returns The Safe transaction data
  */
 export async function generateChainUpdateTransaction(
