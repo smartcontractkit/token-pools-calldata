@@ -48,6 +48,10 @@ pnpm install
 │   └── utils/      # Utility functions
 ```
 
+## Examples
+
+The `examples/` directory contains ready-to-use JSON templates that mirror the input formats used by the CLI commands. Copy the file that matches your workflow, adjust the addresses and parameters, and pass it through the `-i` flag when running `pnpm start generate-*`. They are the quickest way to validate your setup before wiring in real deployment data.
+
 ## Usage
 
 ### Deploy Token and Pool
@@ -157,10 +161,6 @@ pnpm start generate-pool-deployment \
   -c 1 \
   -o output/pool-deployment.json
 ```
-
-Additional options for pool deployment:
-
-- `-t, --token-address <address>`: Address of the existing token (required)
 
 ### Generate Chain Update Calldata
 
