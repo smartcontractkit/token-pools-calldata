@@ -33,10 +33,9 @@ export const remoteTokenPoolInfoSchema = z.object({
 
 // Schema for pool deployment parameters (matches contract function parameters)
 export const poolDeploymentParamsSchema = z.object({
-  token: z.string().refine(
-    (address) => ethers.isAddress(address),
-    (val) => ({ message: `Invalid token address: ${val}` }),
-  ),
+  token: z.string().refine((address: string): boolean => ethers.isAddress(address), {
+    message: 'Invalid Ethereum address format for token',
+  }),
   decimals: z.number(),
   remoteTokenPools: z.array(remoteTokenPoolInfoSchema).optional().default([]),
   poolType: poolTypeSchema,
