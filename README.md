@@ -1,5 +1,15 @@
 # Token Pools Calldata Generator
 
+[![CI](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/ci.yml/badge.svg)](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/codeql.yml/badge.svg)](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/codeql.yml)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
+[![Node: >=22.0.0](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](package.json)
+[![pnpm](https://img.shields.io/badge/maintained%20with-pnpm-cc00ff.svg)](https://pnpm.io/)
+
+> **Note**
+>
+> _This repository represents an example of using a Chainlink product or service. It is provided to help you understand how to interact with Chainlink's systems so that you can integrate them into your own. This template is provided "AS IS" without warranties of any kind, has not been audited, and may be missing key checks or error handling to make the usage of the product more clear. You must thoroughly test and simulate all transactions offchain, validate functionality on testnet environments, and conduct comprehensive security reviews before deploying to mainnet or any production environment._
+
 A tool to generate calldata for TokenPool contract interactions, including token and pool deployment, and chain updates. Supports both raw calldata and Safe Transaction Builder JSON formats with multi-destination-chain support.
 
 ## Features
@@ -309,14 +319,40 @@ Outputs a JSON file compatible with the Safe Transaction Builder format:
 pnpm build
 
 # Run linter
-pnpm lint
+pnpm lint:check
 
 # Fix linting issues
 pnpm lint:fix
 
 # Format code
-pnpm format
+pnpm format:fix
+
+# Check code formatting
+pnpm format:check
 ```
+
+## Testing
+
+The project includes comprehensive unit tests to ensure code quality and prevent regressions.
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode (re-run on file changes)
+pnpm test:watch
+
+# Run tests with coverage report
+pnpm test:coverage
+```
+
+**CI Integration:** All tests are automatically executed on every pull request and push to the main branch via GitHub Actions. The CI workflow ensures that:
+- All tests pass before code can be merged
+- Code coverage is generated and available as artifacts
+- No regressions are introduced
+
+**Viewing Coverage Reports:**
+After running `pnpm test:coverage`, open `coverage/lcov-report/index.html` in your browser to view a detailed HTML coverage report.
 
 ## Type Generation
 

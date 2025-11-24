@@ -67,8 +67,11 @@ export function convertToContractFormat(
     );
   }
 
+  // Type guard: After MVM check, remoteChainType must be EVM or SVM
+  const supportedChainType: ChainType.EVM | ChainType.SVM = chainUpdate.remoteChainType;
+
   try {
-    const encoder = chainEncoders[chainUpdate.remoteChainType as ChainType.EVM | ChainType.SVM];
+    const encoder = chainEncoders[supportedChainType];
     const encodedRemotePoolAddresses = encoder.encodeAddresses(
       abiCoder,
       chainUpdate.remotePoolAddresses,
