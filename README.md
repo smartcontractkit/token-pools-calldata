@@ -1,7 +1,6 @@
 # Token Pools Calldata Generator
 
 [![CI](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/ci.yml/badge.svg)](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/codeql.yml/badge.svg)](https://github.com/smartcontractkit/token-pools-calldata/actions/workflows/codeql.yml)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](LICENSE)
 [![Node: >=22.0.0](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen)](package.json)
 [![pnpm](https://img.shields.io/badge/maintained%20with-pnpm-cc00ff.svg)](https://pnpm.io/)
