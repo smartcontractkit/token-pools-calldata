@@ -33,7 +33,8 @@
         "isEnabled": false,
         "capacity": "0",
         "rate": "0"
-      }
+      },
+      "remoteChainType": "evm"
     }
   ]
 ]

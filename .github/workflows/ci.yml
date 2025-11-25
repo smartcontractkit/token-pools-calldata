@@ -42,8 +42,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run ESLint
-        run: pnpm lint:check
+      - name: Lint
+        run: |
+          # Enforce zero warnings policy
+          pnpm lint:check 2>&1 | tee lint-output.txt
+          if grep -qE "✖.*problem" lint-output.txt; then
+            echo "Error: Linting issues detected. Run 'pnpm lint:fix' to resolve."
+            exit 1
+          fi
 
       - name: Run Prettier
         run: pnpm format:check
@@ -105,8 +111,9 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Run tests with coverage
+      - name: Test with coverage
         run: pnpm test:coverage
+        # Coverage thresholds enforced by jest.config.ts
 
       - name: Upload coverage artifacts
         if: matrix.node-version == '22.x'

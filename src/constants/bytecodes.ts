@@ -1,9 +1,77 @@
 /**
- * Contract bytecodes for deployment
- * These bytecodes are obtained from compiling the contracts:
- * - BurnMintERC20: Chainlink's BurnMintERC20 token implementation
- * - BurnMintTokenPool: Token pool implementation with burn/mint capability
- * - LockReleaseTokenPool: Token pool implementation with lock/release capability
+ * @fileoverview Compiled contract bytecodes for CREATE2 deployments.
+ *
+ * This module contains compiled bytecodes for Chainlink CCIP TokenPool contracts
+ * used in factory-based CREATE2 deployments. Bytecodes are obtained from compiling
+ * Solidity contracts with specific compiler settings and optimization flags.
+ *
+ * Contract Versions:
+ * All contracts are version 1.5.1
+ *
+ * Included Contracts:
+ * - **FACTORY_BURN_MINT_ERC20**: Chainlink's BurnMintERC20 token implementation
+ *   - Mintable and burnable ERC20 token
+ *   - Used with BurnMintTokenPool for burn/mint cross-chain transfers
+ *   - Supports role-based access control for minters and burners
+ *
+ * - **BURN_MINT_TOKEN_POOL**: Token pool with burn/mint capability
+ *   - Burns tokens on source chain during cross-chain transfer
+ *   - Mints tokens on destination chain
+ *   - Requires mint/burn roles on the token contract
+ *
+ * - **LOCK_RELEASE_TOKEN_POOL**: Token pool with lock/release capability
+ *   - Locks tokens on source chain during cross-chain transfer
+ *   - Releases tokens from pool on destination chain
+ *   - Does not require special roles on token contract
+ *
+ * Usage Context:
+ * These bytecodes are used for computing CREATE2 deterministic addresses
+ * before deployment. The bytecodes are combined with constructor arguments
+ * and deployed via TokenPoolFactory.
+ *
+ * @example
+ * ```typescript
+ * import { BYTECODES } from './constants';
+ *
+ * // Compute deterministic token address
+ * const tokenAddress = addressComputer.computeCreate2Address(
+ *   factoryAddress,
+ *   BYTECODES.FACTORY_BURN_MINT_ERC20,
+ *   salt,
+ *   senderAddress
+ * );
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // Use in token deployment generator
+ * const tokenBytecode = BYTECODES.FACTORY_BURN_MINT_ERC20;
+ * const poolBytecode = BYTECODES.BURN_MINT_TOKEN_POOL;
+ *
+ * // Compute both addresses before deployment
+ * const tokenAddr = computeCreate2Address(factory, tokenBytecode, salt, sender);
+ * const poolAddr = computeCreate2Address(factory, poolBytecode, salt, sender);
+ * ```
+ *
+ * @remarks
+ * Compiler Settings:
+ * - Solidity version: 0.8.24
+ * - Optimization: Enabled
+ * - Runs: 200
+ * - EVM version: Paris
+ *
+ * Bytecode Stability:
+ * - These bytecodes are version-specific
+ * - Any change in contract code or compiler settings will produce different bytecodes
+ * - DO NOT modify these values manually
+ * - Update only when new contract versions are released
+ *
+ * Contract Sources:
+ * - Chainlink CCIP contracts repository
+ * - https://github.com/smartcontractkit/ccip
+ *
+ * @module constants/bytecodes
+ * @public
  */
 export const BYTECODES = {
   FACTORY_BURN_MINT_ERC20:

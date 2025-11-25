@@ -1,65 +1,277 @@
 #!/usr/bin/env node
+/**
+ * @fileoverview CLI entry point for TokenPool calldata generation tool.
+ *
+ * This module implements the command-line interface for generating transaction
+ * calldata for Chainlink CCIP TokenPool contract interactions. Built with
+ * Commander.js, it provides 7 commands for different TokenPool operations.
+ *
+ * Architecture:
+ * - **Commander.js**: CLI framework with command parsing
+ * - **Service Container**: Dependency injection for transaction generation
+ * - **Output Service**: Handles calldata and Safe JSON output
+ * - **Error Handling**: Automatic wrapping with user-friendly messages
+ * - **Validation**: Pre-execution validation of all parameters
+ *
+ * Available Commands:
+ * 1. `generate-chain-update` - Configure cross-chain connections
+ * 2. `generate-token-deployment` - Deploy token + pool via factory
+ * 3. `generate-pool-deployment` - Deploy pool for existing token
+ * 4. `generate-mint` - Mint tokens (requires minter role)
+ * 5. `generate-grant-roles` - Grant/revoke mint/burn roles
+ * 6. `generate-allow-list-updates` - Update sender allow lists
+ * 7. `generate-rate-limiter-config` - Configure token bucket rate limits
+ *
+ * Output Formats:
+ * - **Calldata** (default): Raw hex-encoded function calls for direct execution
+ * - **Safe JSON**: Formatted JSON for Safe Transaction Builder UI
+ *
+ * Common Usage Pattern:
+ * ```bash
+ * token-pools-calldata <command> \
+ *   -i input.json \
+ *   -o output.txt \
+ *   -f calldata \
+ *   [command-specific-options]
+ * ```
+ *
+ * @module cli
+ * @see {@link https://github.com/tj/commander.js} Commander.js documentation
+ * @see {@link https://docs.chain.link/ccip} Chainlink CCIP documentation
+ */
+
 import { Command, Option } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
-import prettier from 'prettier';
-import { ethers } from 'ethers';
+import { getServiceContainer } from './services';
+import { OUTPUT_FORMAT } from './config';
+import { withErrorHandling } from './cli/errorHandler';
+import { OutputService } from './output';
 import {
-  generateChainUpdateTransaction,
-  createChainUpdateJSON,
-} from './generators/chainUpdateCalldata';
-import logger from './utils/logger';
-import {
-  generateTokenAndPoolDeployment,
-  createTokenDeploymentJSON,
-} from './generators/tokenDeployment';
-import {
-  generatePoolDeploymentTransaction,
-  createPoolDeploymentJSON,
-} from './generators/poolDeployment';
-import { TokenDeploymentParams } from './types/tokenDeployment';
-import { PoolDeploymentParams } from './types/poolDeployment';
-import { SafeMetadata } from './types/safe';
-import { SafeChainUpdateMetadata } from './types/chainUpdate';
+  validateChainUpdateOptions,
+  validateTokenDeploymentOptions,
+  validatePoolDeploymentOptions,
+  validateMintOptions,
+  validateAllowListOptions,
+  validateRateLimiterOptions,
+  validateGrantRolesOptions,
+} from './validators';
+
+// Get service container with all dependencies wired up
+const container = getServiceContainer();
+const transactionService = container.transactionService;
+const outputService = new OutputService();
 
 /**
- * Base options interface for all commands
+ * Base options interface shared across all CLI commands.
+ *
+ * @remarks
+ * Common Parameters:
+ * - **input**: Path to JSON input file (required for most commands)
+ * - **output**: Path to output file (optional, defaults to stdout)
+ * - **format**: Output format (calldata or safe-json)
+ * - **safe**: Safe multisig address (required for safe-json format)
+ * - **owner**: Safe owner address (required for safe-json format)
+ * - **chainId**: Chain ID (required for safe-json format)
+ *
+ * @internal
  */
 interface BaseOptions {
+  /** Path to JSON input file */
   input: string;
+
+  /** Path to output file (optional, defaults to stdout) */
   output?: string;
-  format?: 'calldata' | 'safe-json';
+
+  /** Output format: 'calldata' (default) or 'safe-json' */
+  format?: typeof OUTPUT_FORMAT.CALLDATA | typeof OUTPUT_FORMAT.SAFE_JSON;
+
+  /** Safe multisig contract address (required for safe-json format) */
   safe?: string;
+
+  /** Safe owner address (required for safe-json format) */
   owner?: string;
+
+  /** Chain ID where transaction will be executed (required for safe-json format) */
   chainId?: string;
 }
 
 /**
- * Options for chain update command
+ * Options for chain update command (`generate-chain-update`).
+ *
+ * @remarks
+ * Extends BaseOptions with TokenPool address parameter.
+ * Used to configure cross-chain connections (add/remove remote chains).
+ *
+ * @internal
  */
 interface ChainUpdateOptions extends BaseOptions {
+  /** TokenPool contract address (optional, defaults to placeholder) */
   tokenPool?: string;
 }
 
 /**
- * Base options for deployment commands
+ * Base options for deployment commands.
+ *
+ * @remarks
+ * Shared by token and pool deployment commands. Includes factory address
+ * and CREATE2 salt for deterministic deployment.
+ *
+ * @internal
  */
 interface BaseDeploymentOptions extends BaseOptions {
-  deployer: string; // TokenPoolFactory contract address
+  /** TokenPoolFactory contract address */
+  deployer: string;
+
+  /** 32-byte salt for CREATE2 deterministic deployment */
   salt: string;
+
+  /** Safe address (required for deployments with safe-json format) */
   safe: string;
 }
 
 /**
- * Options for token deployment command
+ * Options for token deployment command (`generate-token-deployment`).
+ *
+ * @remarks
+ * Deploys both BurnMintERC20 token and TokenPool in a single transaction
+ * via TokenPoolFactory.deployToken().
+ *
+ * @internal
  */
 interface TokenDeploymentOptions extends BaseDeploymentOptions {}
 
 /**
- * Options for pool deployment command
+ * Options for pool deployment command (`generate-pool-deployment`).
+ *
+ * @remarks
+ * Deploys TokenPool for an existing token via TokenPoolFactory.deployPool().
+ *
+ * @internal
  */
 interface PoolDeploymentOptions extends BaseDeploymentOptions {}
 
+/**
+ * Options for mint command (`generate-mint`).
+ *
+ * @remarks
+ * Generates mint transaction for BurnMintERC20 tokens. Requires minter role.
+ *
+ * @internal
+ */
+interface MintOptions extends BaseOptions {
+  /** Token contract address */
+  token: string;
+
+  /** Receiver address for minted tokens */
+  receiver: string;
+
+  /** Amount to mint (string for large numbers, e.g., "1000000000000000000000") */
+  amount: string;
+}
+
+/**
+ * Options for grant roles command (`generate-grant-roles`).
+ *
+ * @remarks
+ * Grants or revokes mint/burn roles to/from a TokenPool. Required before
+ * the pool can burn/mint tokens for cross-chain transfers.
+ *
+ * @internal
+ */
+interface GrantRolesOptions extends BaseOptions {
+  /** Token contract address */
+  token: string;
+
+  /** Pool contract address to grant/revoke roles */
+  pool: string;
+
+  /** Role type: 'mint', 'burn', or 'both' (default: 'both') */
+  roleType?: 'mint' | 'burn' | 'both';
+
+  /** Action: 'grant' or 'revoke' (default: 'grant') */
+  action?: 'grant' | 'revoke';
+}
+
+/**
+ * Options for allow list updates command (`generate-allow-list-updates`).
+ *
+ * @remarks
+ * Updates the sender allow list for a TokenPool. Controls which
+ * addresses can send/receive tokens through the pool.
+ *
+ * @internal
+ */
+interface AllowListUpdatesOptions extends BaseOptions {
+  /** Path to JSON input file with allow list updates */
+  input: string;
+
+  /** TokenPool contract address */
+  pool: string;
+}
+
+/**
+ * Options for rate limiter config command (`generate-rate-limiter-config`).
+ *
+ * @remarks
+ * Configures token bucket rate limiter for a TokenPool. Controls maximum
+ * transfer capacity and refill rate.
+ *
+ * @internal
+ */
+interface RateLimiterConfigOptions extends BaseOptions {
+  /** Path to JSON input file with rate limiter configuration */
+  input: string;
+
+  /** TokenPool contract address */
+  pool: string;
+}
+
+/**
+ * Options for accept ownership command (`generate-accept-ownership`).
+ *
+ * @remarks
+ * Accepts ownership of a contract using two-step ownership transfer pattern.
+ * Works with any Chainlink contract (tokens, pools, etc.) using this pattern.
+ *
+ * @internal
+ */
+interface AcceptOwnershipOptions {
+  /** Contract address to accept ownership of */
+  address: string;
+
+  /** Path to output file (optional, defaults to stdout) */
+  output?: string;
+
+  /** Output format: 'calldata' (default) or 'safe-json' */
+  format?: typeof OUTPUT_FORMAT.CALLDATA | typeof OUTPUT_FORMAT.SAFE_JSON;
+
+  /** Safe multisig contract address (required for safe-json format) */
+  safe?: string;
+
+  /** Safe owner address (required for safe-json format) */
+  owner?: string;
+
+  /** Chain ID where transaction will be executed (required for safe-json format) */
+  chainId?: string;
+}
+
+/**
+ * Creates and configures the Commander.js program instance.
+ *
+ * Factory function that initializes the root Command with program metadata.
+ * Commands are added to this instance later in the module.
+ *
+ * @returns Configured Commander.js Command instance
+ *
+ * @remarks
+ * Program Configuration:
+ * - **name**: 'token-pools-calldata'
+ * - **description**: Brief summary of tool purpose
+ * - **version**: Current version from package.json
+ *
+ * @internal
+ */
 function createProgram(): Command {
   return new Command()
     .name('token-pools-calldata')
@@ -67,233 +279,346 @@ function createProgram(): Command {
     .version('1.0.0');
 }
 
-// Function to format JSON consistently using project's prettier config
-async function formatJSON(obj: unknown): Promise<string> {
-  const config = await prettier.resolveConfig(process.cwd());
-  return prettier.format(JSON.stringify(obj), {
-    ...config,
-    parser: 'json',
-  });
-}
-
+/**
+ * Handles the `generate-chain-update` command.
+ *
+ * Generates calldata for configuring cross-chain connections on a TokenPool.
+ * Reads chain update configuration from JSON input file and generates transaction.
+ *
+ * @param options - Command options from Commander.js
+ *
+ * @remarks
+ * Workflow:
+ * 1. Validate options (chain ID, safe address if safe-json format)
+ * 2. Read input JSON file
+ * 3. Build metadata for Safe JSON (if applicable)
+ * 4. Generate transaction via TransactionService
+ * 5. Write output using OutputService
+ *
+ * Input JSON Format:
+ * ```json
+ * {
+ *   "chainsToAdd": [{ "remoteChainSelector": "...", ... }],
+ *   "chainsToRemove": ["..."]
+ * }
+ * ```
+ *
+ * @internal
+ */
 async function handleChainUpdate(options: ChainUpdateOptions): Promise<void> {
-  try {
-    // Validate Ethereum addresses if provided
-    if (options.safe && !ethers.isAddress(options.safe)) {
-      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
-    }
-    if (options.owner && !ethers.isAddress(options.owner)) {
-      throw new Error(`Invalid owner address: ${String(options.owner)}`);
-    }
-    if (options.tokenPool && !ethers.isAddress(options.tokenPool)) {
-      throw new Error(`Invalid Token Pool address: ${String(options.tokenPool)}`);
-    }
+  validateChainUpdateOptions(options);
 
-    const inputPath = path.resolve(options.input);
-    const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const transaction = await generateChainUpdateTransaction(inputJson);
+  const inputPath = path.resolve(options.input);
+  const inputJson = await fs.readFile(inputPath, 'utf-8');
 
-    if (options.format === 'safe-json') {
-      if (!options.chainId || !options.safe || !options.owner) {
-        throw new Error(
-          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
-        );
-      }
+  // Use TransactionService to generate transaction and Safe JSON
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          tokenPoolAddress: options.tokenPool || '0xYOUR_POOL_ADDRESS',
+        }
+      : undefined;
 
-      const metadata: SafeChainUpdateMetadata = {
-        chainId: options.chainId,
-        safeAddress: options.safe,
-        ownerAddress: options.owner,
-        tokenPoolAddress: options.tokenPool || '0xYOUR_POOL_ADDRESS',
-      };
+  const { transaction, safeJson } = await transactionService.generateChainUpdate(
+    inputJson,
+    options.tokenPool || '0xYOUR_POOL_ADDRESS',
+    metadata,
+  );
 
-      const safeJson = createChainUpdateJSON(transaction, metadata);
-      const formattedJson = await formatJSON(safeJson);
-
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, formattedJson);
-        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
-      } else {
-        console.log(formattedJson);
-      }
-    } else {
-      // Default format: just output the transaction data
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, transaction.data + '\n');
-        logger.info('Successfully wrote transaction data to file', { outputPath });
-      } else {
-        console.log(transaction.data);
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      logger.error('Failed to generate chain update transaction', {
-        error: error.message,
-        stack: error.stack,
-      });
-    } else {
-      logger.error('Failed to generate chain update transaction', {
-        error: 'Unknown error',
-      });
-    }
-    process.exit(1);
-  }
+  // Write output using OutputService
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
 }
 
+/**
+ * Handles the `generate-token-deployment` command.
+ *
+ * Generates deployment transaction for BurnMintERC20 token and TokenPool via
+ * TokenPoolFactory.deployToken(). Uses CREATE2 for deterministic addresses.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
 async function handleTokenDeployment(options: TokenDeploymentOptions): Promise<void> {
-  try {
-    // Validate Ethereum addresses if provided
-    if (options.safe && !ethers.isAddress(options.safe)) {
-      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
-    }
-    if (options.owner && !ethers.isAddress(options.owner)) {
-      throw new Error(`Invalid owner address: ${String(options.owner)}`);
-    }
-    if (!ethers.isAddress(options.deployer)) {
-      throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
-    }
-    if (!options.salt) {
-      throw new Error('Salt is required');
-    }
-    if (ethers.dataLength(options.salt) !== 32) {
-      throw new Error('Salt must be a 32-byte hex string');
-    }
+  validateTokenDeploymentOptions(options);
 
-    const inputPath = path.resolve(options.input);
-    const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const transaction = await generateTokenAndPoolDeployment(
-      inputJson,
-      options.deployer,
-      options.salt,
-      options.safe,
-    );
+  const inputPath = path.resolve(options.input);
+  const inputJson = await fs.readFile(inputPath, 'utf-8');
 
-    // Parse input JSON for Safe JSON format
-    const parsedInput = JSON.parse(inputJson) as TokenDeploymentParams;
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe,
+          ownerAddress: options.owner!,
+        }
+      : undefined;
 
-    if (options.format === 'safe-json') {
-      if (!options.chainId || !options.safe || !options.owner) {
-        throw new Error(
-          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
-        );
-      }
+  const { transaction, safeJson } = await transactionService.generateTokenDeployment(
+    inputJson,
+    options.deployer,
+    options.salt,
+    options.safe,
+    metadata,
+  );
 
-      const metadata: SafeMetadata = {
-        chainId: options.chainId,
-        safeAddress: options.safe,
-        ownerAddress: options.owner,
-      };
-
-      const safeJson = createTokenDeploymentJSON(transaction, parsedInput, metadata);
-      const formattedJson = await formatJSON(safeJson);
-
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, formattedJson);
-        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
-      } else {
-        console.log(formattedJson);
-      }
-    } else {
-      // Default format: just output the transaction data
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, transaction.data + '\n');
-        logger.info('Successfully wrote transaction data to file', { outputPath });
-      } else {
-        console.log(transaction.data);
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      logger.error('Failed to generate token deployment', {
-        error: error.message,
-        stack: error.stack,
-      });
-    } else {
-      logger.error('Failed to generate token deployment', { error: 'Unknown error' });
-    }
-    process.exit(1);
-  }
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
 }
 
+/**
+ * Handles the `generate-pool-deployment` command.
+ *
+ * Generates deployment transaction for TokenPool (without token) via
+ * TokenPoolFactory.deployPool(). For existing tokens.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
 async function handlePoolDeployment(options: PoolDeploymentOptions): Promise<void> {
-  try {
-    // Validate Ethereum addresses if provided
-    if (options.safe && !ethers.isAddress(options.safe)) {
-      throw new Error(`Invalid Safe address: ${String(options.safe)}`);
-    }
-    if (options.owner && !ethers.isAddress(options.owner)) {
-      throw new Error(`Invalid owner address: ${String(options.owner)}`);
-    }
-    if (!ethers.isAddress(options.deployer)) {
-      throw new Error(`Invalid deployer address: ${String(options.deployer)}`);
-    }
+  validatePoolDeploymentOptions(options);
 
-    if (!options.salt) {
-      throw new Error('Salt is required');
+  const inputPath = path.resolve(options.input);
+  const inputJson = await fs.readFile(inputPath, 'utf-8');
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe,
+          ownerAddress: options.owner!,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generatePoolDeployment(
+    inputJson,
+    options.deployer,
+    options.salt,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-mint` command.
+ *
+ * Generates mint transaction for BurnMintERC20 tokens. Requires minter role
+ * to be granted to the transaction sender.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleMint(options: MintOptions): Promise<void> {
+  validateMintOptions(options);
+
+  // Create input JSON from command line options
+  const inputJson = JSON.stringify({
+    receiver: options.receiver,
+    amount: options.amount,
+  });
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          tokenAddress: options.token,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateMint(
+    inputJson,
+    options.token,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-allow-list-updates` command.
+ *
+ * Generates transaction to update TokenPool allow list. Controls which addresses
+ * can send/receive tokens through the pool.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleAllowListUpdates(options: AllowListUpdatesOptions): Promise<void> {
+  validateAllowListOptions(options);
+
+  const inputPath = path.resolve(options.input);
+  const inputJson = await fs.readFile(inputPath, 'utf-8');
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          tokenPoolAddress: options.pool,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateAllowListUpdates(
+    inputJson,
+    options.pool,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-rate-limiter-config` command.
+ *
+ * Generates transaction to configure TokenPool rate limiter. Implements token bucket
+ * algorithm to control transfer rate (capacity + refill rate per chain).
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleRateLimiterConfig(options: RateLimiterConfigOptions): Promise<void> {
+  validateRateLimiterOptions(options);
+
+  const inputPath = path.resolve(options.input);
+  const inputJson = await fs.readFile(inputPath, 'utf-8');
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          tokenPoolAddress: options.pool,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateRateLimiterConfig(
+    inputJson,
+    options.pool,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-grant-roles` command.
+ *
+ * Generates transaction(s) to grant or revoke mint/burn roles. Required before
+ * a TokenPool can burn/mint tokens for cross-chain transfers.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleGrantRoles(options: GrantRolesOptions): Promise<void> {
+  validateGrantRolesOptions(options);
+
+  // Create input JSON from command line options
+  const inputJson = JSON.stringify({
+    pool: options.pool,
+    roleType: options.roleType || 'both',
+    action: options.action || 'grant',
+  });
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          tokenAddress: options.token,
+        }
+      : undefined;
+
+  const { transactions, safeJson } = await transactionService.generateRoleManagement(
+    inputJson,
+    options.token,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transactions,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-accept-ownership` command.
+ *
+ * Generates transaction to accept ownership of a contract using the two-step
+ * ownership transfer pattern. Works with any Chainlink contract (tokens, pools, etc.).
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleAcceptOwnership(options: AcceptOwnershipOptions): Promise<void> {
+  // Validate safe-json format requirements
+  if (options.format === OUTPUT_FORMAT.SAFE_JSON) {
+    if (!options.chainId || !options.safe || !options.owner) {
+      throw new Error(
+        'Chain ID (-c), safe address (-s), and owner address (-w) are required for safe-json format',
+      );
     }
-    if (ethers.dataLength(options.salt) !== 32) {
-      throw new Error('Salt must be a 32-byte hex string');
-    }
-
-    const inputPath = path.resolve(options.input);
-    const inputJson = await fs.readFile(inputPath, 'utf-8');
-    const transaction = await generatePoolDeploymentTransaction(
-      inputJson,
-      options.deployer,
-      options.salt,
-    );
-
-    // Parse input JSON for Safe JSON format
-    const parsedInput = JSON.parse(inputJson) as PoolDeploymentParams;
-
-    if (options.format === 'safe-json') {
-      if (!options.chainId || !options.safe || !options.owner) {
-        throw new Error(
-          'chainId, safe, and owner are required for Safe Transaction Builder JSON format',
-        );
-      }
-
-      const metadata: SafeMetadata = {
-        chainId: options.chainId,
-        safeAddress: options.safe,
-        ownerAddress: options.owner,
-      };
-
-      const safeJson = createPoolDeploymentJSON(transaction, parsedInput, metadata);
-      const formattedJson = await formatJSON(safeJson);
-
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, formattedJson);
-        logger.info('Successfully wrote Safe Transaction Builder JSON to file', { outputPath });
-      } else {
-        console.log(formattedJson);
-      }
-    } else {
-      // Default format: just output the transaction data
-      if (options.output) {
-        const outputPath = path.resolve(options.output);
-        await fs.writeFile(outputPath, transaction.data + '\n');
-        logger.info('Successfully wrote transaction data to file', { outputPath });
-      } else {
-        console.log(transaction.data);
-      }
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      logger.error('Failed to generate pool deployment', {
-        error: error.message,
-        stack: error.stack,
-      });
-    } else {
-      logger.error('Failed to generate pool deployment', { error: 'Unknown error' });
-    }
-    process.exit(1);
   }
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          contractAddress: options.address,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateAcceptOwnership(
+    options.address,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
 }
 
 // Initialize the program
@@ -307,8 +632,8 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices(['calldata', 'safe-json'])
-      .default('calldata'),
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (for safe-json format)')
@@ -317,24 +642,29 @@ program
     '-p, --token-pool <address>',
     'Token Pool contract address (optional, defaults to placeholder)',
   )
-  .action(handleChainUpdate);
+  .action(withErrorHandling(handleChainUpdate, 'generate-chain-update'));
 
 program
   .command('generate-token-deployment')
-  .description('Generate deployment transaction for BurnMintERC20 token')
+  .description('Generate deployment transaction for BurnMintERC20 token and pool')
   .requiredOption('-i, --input <path>', 'Path to input JSON file')
   .requiredOption('-d, --deployer <address>', 'TokenPoolFactory contract address')
   .requiredOption('--salt <bytes32>', 'Salt for create2')
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices(['calldata', 'safe-json'])
-      .default('calldata'),
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
-  .action(handleTokenDeployment as (options: TokenDeploymentOptions) => Promise<void>);
+  .action(
+    withErrorHandling(
+      handleTokenDeployment as (options: TokenDeploymentOptions) => Promise<void>,
+      'generate-token-deployment',
+    ),
+  );
 
 program
   .command('generate-pool-deployment')
@@ -345,13 +675,128 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices(['calldata', 'safe-json'])
-      .default('calldata'),
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
   .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
   .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
-  .action(handlePoolDeployment as (options: PoolDeploymentOptions) => Promise<void>);
+  .action(
+    withErrorHandling(
+      handlePoolDeployment as (options: PoolDeploymentOptions) => Promise<void>,
+      'generate-pool-deployment',
+    ),
+  );
+
+program
+  .command('generate-mint')
+  .description('Generate mint transaction for BurnMintERC20 token')
+  .requiredOption('-t, --token <address>', 'Token contract address')
+  .requiredOption('-r, --receiver <address>', 'Receiver address')
+  .requiredOption('-a, --amount <amount>', 'Amount to mint (as string for large numbers)')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(handleMint as (options: MintOptions) => Promise<void>, 'generate-mint'),
+  );
+
+program
+  .command('generate-grant-roles')
+  .description('Generate transaction to grant or revoke mint/burn roles to/from token pool')
+  .requiredOption('-t, --token <address>', 'Token contract address')
+  .requiredOption('-p, --pool <address>', 'Pool contract address')
+  .addOption(
+    new Option('--role-type <type>', 'Role type').choices(['mint', 'burn', 'both']).default('both'),
+  )
+  .addOption(
+    new Option('--action <type>', 'Action to perform')
+      .choices(['grant', 'revoke'])
+      .default('grant'),
+  )
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleGrantRoles as (options: GrantRolesOptions) => Promise<void>,
+      'generate-grant-roles',
+    ),
+  );
+
+program
+  .command('generate-allow-list-updates')
+  .description('Generate transaction to update token pool allow list')
+  .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .requiredOption('-p, --pool <address>', 'Token pool contract address')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleAllowListUpdates as (options: AllowListUpdatesOptions) => Promise<void>,
+      'generate-allow-list-updates',
+    ),
+  );
+
+program
+  .command('generate-rate-limiter-config')
+  .description('Generate transaction to update chain rate limiter configuration')
+  .requiredOption('-i, --input <path>', 'Path to input JSON file')
+  .requiredOption('-p, --pool <address>', 'Token pool contract address')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleRateLimiterConfig as (options: RateLimiterConfigOptions) => Promise<void>,
+      'generate-rate-limiter-config',
+    ),
+  );
+
+program
+  .command('generate-accept-ownership')
+  .description('Generate transaction to accept ownership of a contract (token, pool, etc.)')
+  .requiredOption('-a, --address <address>', 'Contract address to accept ownership of')
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleAcceptOwnership as (options: AcceptOwnershipOptions) => Promise<void>,
+      'generate-accept-ownership',
+    ),
+  );
 
 // Parse command line arguments
 void program.parse(process.argv);

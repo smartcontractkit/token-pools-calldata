@@ -1,9 +1,7 @@
-import {
-  convertToContractFormat,
-  generateChainUpdateTransaction,
-} from '../generators/chainUpdateCalldata';
+import { convertToContractFormat } from '../generators/chainUpdateCalldata';
 import { SafeOperationType } from '../types/safe';
 import { ChainType, ChainUpdateInput } from '../types/chainUpdate';
+import { getServiceContainer } from '../services';
 
 describe('convertToContractFormat', () => {
   const baseChainUpdateStub: Partial<ChainUpdateInput> = {
@@ -118,9 +116,10 @@ describe('convertToContractFormat', () => {
   });
 });
 
-describe('generateChainUpdateTransaction', () => {
+describe('chainUpdateGenerator', () => {
   describe('EVM Chain Type', () => {
     it('should generate transaction for EVM chain updates', async () => {
+      const container = getServiceContainer();
       const inputJson = JSON.stringify([
         [], // Chain selectors to remove. See `chainUpdatesInputSchema`
         [
@@ -146,7 +145,7 @@ describe('generateChainUpdateTransaction', () => {
         ],
       ]);
 
-      const result = await generateChainUpdateTransaction(inputJson);
+      const result = await container.chainUpdateGenerator.generate(inputJson);
 
       expect(result).toHaveProperty('to', '');
       expect(result).toHaveProperty('value', '0');
