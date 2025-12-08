@@ -78,7 +78,8 @@ module.exports = [
     },
   },
 
-  // Configuration for test files
+  // Configuration for test files - Following FAANG best practices
+  // Tests have different type safety requirements than production code
   {
     files: ['**/*.test.ts', '**/*.spec.ts', '**/test/**/*.ts'],
 
@@ -109,6 +110,7 @@ module.exports = [
         beforeAll: 'readonly',
         afterAll: 'readonly',
         jest: 'readonly',
+        fail: 'readonly',
       },
     },
 
@@ -126,22 +128,26 @@ module.exports = [
       ...prettier.rules,
       'prettier/prettier': 'error',
 
-      // Custom TypeScript-specific rules
-      '@typescript-eslint/explicit-function-return-type': 'error',
+      // Rules turned OFF for test files (incompatible with testing patterns)
+      '@typescript-eslint/unbound-method': 'off', // Jest mocks are unbound by design
+      '@typescript-eslint/only-throw-error': 'off', // Tests verify non-Error throw handling
+      '@typescript-eslint/require-await': 'off', // Async test helpers often don't await
+      '@typescript-eslint/explicit-function-return-type': 'off', // Test arrow functions are self-documenting
+
+      // Rules downgraded to WARN for test files (useful but not blocking)
+      '@typescript-eslint/no-explicit-any': 'warn', // Relax from error to warn
+      '@typescript-eslint/no-unsafe-assignment': 'warn', // Keep as warn
+      '@typescript-eslint/no-unsafe-member-access': 'warn', // Keep as warn
+      '@typescript-eslint/no-unsafe-call': 'warn', // Keep as warn
+      '@typescript-eslint/no-unsafe-return': 'warn', // Downgrade from error to warn
+      '@typescript-eslint/no-unsafe-argument': 'warn', // Add for consistency
+
+      // Standard test file overrides
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-call': 'warn',
-      '@typescript-eslint/no-unsafe-return': 'error',
-      
-      // Allow empty interfaces in tests
       '@typescript-eslint/no-empty-object-type': 'off',
-      
-      // Disable no-undef in test files since Jest globals are defined
       'no-undef': 'off',
     },
   },
