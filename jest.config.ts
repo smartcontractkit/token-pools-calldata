@@ -6,7 +6,14 @@ export default {
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/test/**', '!src/typechain/**'],
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/test/**',
+    '!src/typechain/**',
+    // CLI entry point is integration code - tested via E2E, not unit tests
+    '!src/cli.ts',
+  ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json-summary'],
   coverageThreshold: {

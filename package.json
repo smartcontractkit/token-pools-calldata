@@ -25,7 +25,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@typechain/ethers-v6": "^0.5.1",
     "@types/jest": "^30.0.0",
