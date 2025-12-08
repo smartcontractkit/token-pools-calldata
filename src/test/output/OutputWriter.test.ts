@@ -101,7 +101,7 @@ describe('CalldataWriter', () => {
     });
 
     it('should handle absolute paths', async () => {
-      const absolutePath = '/tmp/calldata.txt';
+      const absolutePath = '/mock/test/output/calldata.txt';
       (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
 
       await writer.write(mockCalldata, { type: 'file', path: absolutePath });
