@@ -48,7 +48,7 @@
     "@solana/web3.js": "^1.98.4",
     "commander": "^14.0.2",
     "ethers": "^6.15.0",
-    "prettier": "^3.7.3",
+    "prettier": "^3.7.4",
     "winston": "^3.18.3",
     "zod": "^4.1.13"
   },
