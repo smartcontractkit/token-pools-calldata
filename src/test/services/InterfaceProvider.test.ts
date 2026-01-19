@@ -8,6 +8,8 @@ import {
   TokenPool__factory,
   TokenPoolFactory__factory,
   FactoryBurnMintERC20__factory,
+  RegistryModuleOwnerCustom__factory,
+  TokenAdminRegistry__factory,
 } from '../../typechain';
 
 describe('InterfaceProvider', () => {
@@ -156,6 +158,76 @@ describe('InterfaceProvider', () => {
     });
   });
 
+  describe('getRegistryModuleOwnerCustomInterface', () => {
+    it('should return RegistryModuleOwnerCustom interface', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getRegistryModuleOwnerCustomInterface();
+
+      expect(registryInterface).toBeDefined();
+      expect(registryInterface.fragments.length).toBeGreaterThan(0);
+    });
+
+    it('should cache and return same interface instance on subsequent calls', () => {
+      const provider = createInterfaceProvider();
+      const firstCall = provider.getRegistryModuleOwnerCustomInterface();
+      const secondCall = provider.getRegistryModuleOwnerCustomInterface();
+
+      expect(firstCall).toBe(secondCall);
+    });
+
+    it('should have registerAdminViaOwner function', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getRegistryModuleOwnerCustomInterface();
+
+      const fragment = registryInterface.getFunction('registerAdminViaOwner');
+      expect(fragment).toBeDefined();
+      expect(fragment?.name).toBe('registerAdminViaOwner');
+    });
+  });
+
+  describe('getTokenAdminRegistryInterface', () => {
+    it('should return TokenAdminRegistry interface', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getTokenAdminRegistryInterface();
+
+      expect(registryInterface).toBeDefined();
+      expect(registryInterface.fragments.length).toBeGreaterThan(0);
+    });
+
+    it('should cache and return same interface instance on subsequent calls', () => {
+      const provider = createInterfaceProvider();
+      const firstCall = provider.getTokenAdminRegistryInterface();
+      const secondCall = provider.getTokenAdminRegistryInterface();
+
+      expect(firstCall).toBe(secondCall);
+    });
+
+    it('should have setPool function', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getTokenAdminRegistryInterface();
+
+      const fragment = registryInterface.getFunction('setPool');
+      expect(fragment).toBeDefined();
+      expect(fragment?.name).toBe('setPool');
+    });
+
+    it('should have transferAdminRole function', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getTokenAdminRegistryInterface();
+
+      const fragment = registryInterface.getFunction('transferAdminRole');
+      expect(fragment).toBeDefined();
+    });
+
+    it('should have acceptAdminRole function', () => {
+      const provider = createInterfaceProvider();
+      const registryInterface = provider.getTokenAdminRegistryInterface();
+
+      const fragment = registryInterface.getFunction('acceptAdminRole');
+      expect(fragment).toBeDefined();
+    });
+  });
+
   describe('Cache behavior', () => {
     it('should maintain separate caches for different interfaces', () => {
       const provider = createInterfaceProvider();
@@ -163,11 +235,20 @@ describe('InterfaceProvider', () => {
       const tokenPoolInterface = provider.getTokenPoolInterface();
       const factoryInterface = provider.getTokenPoolFactoryInterface();
       const tokenInterface = provider.getFactoryBurnMintERC20Interface();
+      const registryModuleInterface = provider.getRegistryModuleOwnerCustomInterface();
+      const tokenAdminRegistryInterface = provider.getTokenAdminRegistryInterface();
 
       // All should be different instances
       expect(tokenPoolInterface).not.toBe(factoryInterface);
       expect(tokenPoolInterface).not.toBe(tokenInterface);
+      expect(tokenPoolInterface).not.toBe(registryModuleInterface);
+      expect(tokenPoolInterface).not.toBe(tokenAdminRegistryInterface);
       expect(factoryInterface).not.toBe(tokenInterface);
+      expect(factoryInterface).not.toBe(registryModuleInterface);
+      expect(factoryInterface).not.toBe(tokenAdminRegistryInterface);
+      expect(tokenInterface).not.toBe(registryModuleInterface);
+      expect(tokenInterface).not.toBe(tokenAdminRegistryInterface);
+      expect(registryModuleInterface).not.toBe(tokenAdminRegistryInterface);
     });
 
     it('should not share cache between different provider instances', () => {
@@ -182,23 +263,29 @@ describe('InterfaceProvider', () => {
       expect(interface1).not.toBe(interface2);
     });
 
-    it('should cache all three interfaces independently', () => {
+    it('should cache all five interfaces independently', () => {
       const provider = createInterfaceProvider();
 
       // Get all interfaces
       const tokenPool1 = provider.getTokenPoolInterface();
       const factory1 = provider.getTokenPoolFactoryInterface();
       const token1 = provider.getFactoryBurnMintERC20Interface();
+      const registryModule1 = provider.getRegistryModuleOwnerCustomInterface();
+      const tokenAdminRegistry1 = provider.getTokenAdminRegistryInterface();
 
       // Get them again
       const tokenPool2 = provider.getTokenPoolInterface();
       const factory2 = provider.getTokenPoolFactoryInterface();
       const token2 = provider.getFactoryBurnMintERC20Interface();
+      const registryModule2 = provider.getRegistryModuleOwnerCustomInterface();
+      const tokenAdminRegistry2 = provider.getTokenAdminRegistryInterface();
 
       // Each should be cached
       expect(tokenPool1).toBe(tokenPool2);
       expect(factory1).toBe(factory2);
       expect(token1).toBe(token2);
+      expect(registryModule1).toBe(registryModule2);
+      expect(tokenAdminRegistry1).toBe(tokenAdminRegistry2);
     });
   });
 
@@ -227,6 +314,22 @@ describe('InterfaceProvider', () => {
 
       expect(providerInterface.fragments.length).toBe(factoryInterface.fragments.length);
     });
+
+    it('RegistryModuleOwnerCustom interface should match factory-created interface', () => {
+      const provider = createInterfaceProvider();
+      const providerInterface = provider.getRegistryModuleOwnerCustomInterface();
+      const factoryInterface = RegistryModuleOwnerCustom__factory.createInterface();
+
+      expect(providerInterface.fragments.length).toBe(factoryInterface.fragments.length);
+    });
+
+    it('TokenAdminRegistry interface should match factory-created interface', () => {
+      const provider = createInterfaceProvider();
+      const providerInterface = provider.getTokenAdminRegistryInterface();
+      const factoryInterface = TokenAdminRegistry__factory.createInterface();
+
+      expect(providerInterface.fragments.length).toBe(factoryInterface.fragments.length);
+    });
   });
 
   describe('Multiple calls performance', () => {
@@ -238,12 +341,18 @@ describe('InterfaceProvider', () => {
         provider.getTokenPoolInterface();
         provider.getTokenPoolFactoryInterface();
         provider.getFactoryBurnMintERC20Interface();
+        provider.getRegistryModuleOwnerCustomInterface();
+        provider.getTokenAdminRegistryInterface();
       }
 
       // Verify cache is working (instances should be same)
       const tokenPool1 = provider.getTokenPoolInterface();
       const tokenPool2 = provider.getTokenPoolInterface();
       expect(tokenPool1).toBe(tokenPool2);
+
+      const registry1 = provider.getTokenAdminRegistryInterface();
+      const registry2 = provider.getTokenAdminRegistryInterface();
+      expect(registry1).toBe(registry2);
     });
   });
 });
