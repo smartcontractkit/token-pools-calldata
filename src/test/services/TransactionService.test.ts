@@ -21,6 +21,10 @@ import type { AllowListFormatter } from '../../formatters/allowListFormatter';
 import type { RateLimiterFormatter } from '../../formatters/rateLimiterFormatter';
 import type { AcceptOwnershipGenerator } from '../../generators/acceptOwnership';
 import type { AcceptOwnershipFormatter } from '../../formatters/acceptOwnershipFormatter';
+import type { RegisterAdminGenerator } from '../../generators/registerAdmin';
+import type { RegisterAdminFormatter } from '../../formatters/registerAdminFormatter';
+import type { TokenAdminRegistryGenerator } from '../../generators/tokenAdminRegistry';
+import type { TokenAdminRegistryFormatter } from '../../formatters/tokenAdminRegistryFormatter';
 
 describe('TransactionService', () => {
   let service: TransactionService;
@@ -91,6 +95,22 @@ describe('TransactionService', () => {
     format: jest.fn(),
   };
 
+  const mockRegisterAdminGenerator: jest.Mocked<RegisterAdminGenerator> = {
+    generate: jest.fn(),
+  };
+
+  const mockRegisterAdminFormatter: jest.Mocked<RegisterAdminFormatter> = {
+    format: jest.fn(),
+  };
+
+  const mockTokenAdminRegistryGenerator: jest.Mocked<TokenAdminRegistryGenerator> = {
+    generate: jest.fn(),
+  };
+
+  const mockTokenAdminRegistryFormatter: jest.Mocked<TokenAdminRegistryFormatter> = {
+    format: jest.fn(),
+  };
+
   const mockTransaction = {
     to: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
     value: '0',
@@ -130,6 +150,8 @@ describe('TransactionService', () => {
       allowListUpdatesGenerator: mockAllowListUpdatesGenerator,
       rateLimiterConfigGenerator: mockRateLimiterConfigGenerator,
       acceptOwnershipGenerator: mockAcceptOwnershipGenerator,
+      registerAdminGenerator: mockRegisterAdminGenerator,
+      tokenAdminRegistryGenerator: mockTokenAdminRegistryGenerator,
       chainUpdateFormatter: mockChainUpdateFormatter,
       tokenDeploymentFormatter: mockTokenDeploymentFormatter,
       poolDeploymentFormatter: mockPoolDeploymentFormatter,
@@ -138,6 +160,8 @@ describe('TransactionService', () => {
       allowListFormatter: mockAllowListFormatter,
       rateLimiterFormatter: mockRateLimiterFormatter,
       acceptOwnershipFormatter: mockAcceptOwnershipFormatter,
+      registerAdminFormatter: mockRegisterAdminFormatter,
+      tokenAdminRegistryFormatter: mockTokenAdminRegistryFormatter,
     });
   });
 
@@ -439,6 +463,50 @@ describe('TransactionService', () => {
     });
   });
 
+  describe('generateTokenAdminRegistry', () => {
+    const setPoolInputJson = JSON.stringify({
+      registryAddress: '0x1234567890123456789012345678901234567890',
+      tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+      method: 'set-pool',
+      poolAddress: '0xabcdef1234567890123456789012345678901234',
+    });
+
+    it('should generate transaction without Safe JSON', async () => {
+      mockTokenAdminRegistryGenerator.generate.mockResolvedValue({
+        transaction: mockTransaction,
+        functionName: 'setPool',
+      });
+
+      const result = await service.generateTokenAdminRegistry(setPoolInputJson);
+
+      expect(result.transaction).toEqual(mockTransaction);
+      expect(result.safeJson).toBeNull();
+      expect(mockTokenAdminRegistryGenerator.generate).toHaveBeenCalledWith(setPoolInputJson);
+      expect(mockTokenAdminRegistryFormatter.format).not.toHaveBeenCalled();
+    });
+
+    it('should generate transaction with Safe JSON when metadata provided', async () => {
+      mockTokenAdminRegistryGenerator.generate.mockResolvedValue({
+        transaction: mockTransaction,
+        functionName: 'setPool',
+      });
+      mockTokenAdminRegistryFormatter.format.mockReturnValue(mockSafeJson);
+
+      const metadata = {
+        chainId: '11155111',
+        safeAddress: '0x5419c6d83473d1c653e7b51e8568fafedce94f01',
+        ownerAddress: '0x0000000000000000000000000000000000000000',
+        registryAddress: '0x1234567890123456789012345678901234567890',
+      };
+
+      const result = await service.generateTokenAdminRegistry(setPoolInputJson, metadata);
+
+      expect(result.transaction).toEqual(mockTransaction);
+      expect(result.safeJson).toEqual(mockSafeJson);
+      expect(mockTokenAdminRegistryFormatter.format).toHaveBeenCalled();
+    });
+  });
+
   describe('createTransactionService', () => {
     it('should create a TransactionService instance', () => {
       const service = createTransactionService({
@@ -450,6 +518,8 @@ describe('TransactionService', () => {
         allowListUpdatesGenerator: mockAllowListUpdatesGenerator,
         rateLimiterConfigGenerator: mockRateLimiterConfigGenerator,
         acceptOwnershipGenerator: mockAcceptOwnershipGenerator,
+        registerAdminGenerator: mockRegisterAdminGenerator,
+        tokenAdminRegistryGenerator: mockTokenAdminRegistryGenerator,
         chainUpdateFormatter: mockChainUpdateFormatter,
         tokenDeploymentFormatter: mockTokenDeploymentFormatter,
         poolDeploymentFormatter: mockPoolDeploymentFormatter,
@@ -458,6 +528,8 @@ describe('TransactionService', () => {
         allowListFormatter: mockAllowListFormatter,
         rateLimiterFormatter: mockRateLimiterFormatter,
         acceptOwnershipFormatter: mockAcceptOwnershipFormatter,
+        registerAdminFormatter: mockRegisterAdminFormatter,
+        tokenAdminRegistryFormatter: mockTokenAdminRegistryFormatter,
       });
 
       expect(service).toBeInstanceOf(TransactionService);

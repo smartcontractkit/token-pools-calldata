@@ -17,6 +17,8 @@ import { RoleManagementGenerator } from '../generators/roleManagement';
 import { AllowListUpdatesGenerator } from '../generators/allowListUpdates';
 import { RateLimiterConfigGenerator } from '../generators/rateLimiterConfig';
 import { AcceptOwnershipGenerator } from '../generators/acceptOwnership';
+import { RegisterAdminGenerator } from '../generators/registerAdmin';
+import { TokenAdminRegistryGenerator } from '../generators/tokenAdminRegistry';
 import { ChainUpdateFormatter } from '../formatters/chainUpdateFormatter';
 import { TokenDeploymentFormatter } from '../formatters/tokenDeploymentFormatter';
 import { PoolDeploymentFormatter } from '../formatters/poolDeploymentFormatter';
@@ -28,11 +30,15 @@ import {
   AcceptOwnershipFormatter,
   SafeAcceptOwnershipMetadata,
 } from '../formatters/acceptOwnershipFormatter';
+import { RegisterAdminFormatter } from '../formatters/registerAdminFormatter';
+import { TokenAdminRegistryFormatter } from '../formatters/tokenAdminRegistryFormatter';
 import { SafeTransactionDataBase, SafeTransactionBuilderJSON, SafeMetadata } from '../types/safe';
 import { SafeChainUpdateMetadata } from '../types/chainUpdate';
 import { SafeMintMetadata, SafeRoleManagementMetadata } from '../types/tokenMint';
 import { SafeAllowListMetadata } from '../types/allowList';
 import { SafeRateLimiterMetadata } from '../types/rateLimiter';
+import { SafeRegisterAdminMetadata } from '../types/registerAdmin';
+import { SafeTokenAdminRegistryMetadata } from '../types/tokenAdminRegistry';
 import {
   parseJSON,
   isTokenDeploymentParams,
@@ -41,6 +47,8 @@ import {
   isRoleManagementParams,
   isAllowListUpdatesInput,
   isSetChainRateLimiterConfigInput,
+  isRegisterAdminInput,
+  isTokenAdminRegistryInput,
 } from '../types/typeGuards';
 
 /**
@@ -72,6 +80,8 @@ export interface TransactionServiceDependencies {
   allowListUpdatesGenerator: AllowListUpdatesGenerator;
   rateLimiterConfigGenerator: RateLimiterConfigGenerator;
   acceptOwnershipGenerator: AcceptOwnershipGenerator;
+  registerAdminGenerator: RegisterAdminGenerator;
+  tokenAdminRegistryGenerator: TokenAdminRegistryGenerator;
   // Formatters
   chainUpdateFormatter: ChainUpdateFormatter;
   tokenDeploymentFormatter: TokenDeploymentFormatter;
@@ -81,6 +91,8 @@ export interface TransactionServiceDependencies {
   allowListFormatter: AllowListFormatter;
   rateLimiterFormatter: RateLimiterFormatter;
   acceptOwnershipFormatter: AcceptOwnershipFormatter;
+  registerAdminFormatter: RegisterAdminFormatter;
+  tokenAdminRegistryFormatter: TokenAdminRegistryFormatter;
 }
 
 /**
@@ -444,6 +456,121 @@ export class TransactionService {
       : null;
 
     return { transaction, safeJson };
+  }
+
+  /**
+   * Generates register admin transaction with optional Safe JSON formatting.
+   *
+   * Creates a transaction for registering as the CCIP admin for a token via the
+   * RegistryModuleOwnerCustom contract. Supports three registration methods.
+   *
+   * @param inputJson - JSON string containing register admin parameters
+   * @param metadata - Optional Safe metadata (if provided, Safe JSON will be generated)
+   *
+   * @returns Object containing raw transaction and optional Safe JSON
+   *
+   * @remarks
+   * Registration Methods:
+   * - `get-ccip-admin`: Uses token's getCCIPAdmin() function
+   * - `owner`: Uses token's owner() function (standard Ownable pattern)
+   * - `access-control`: Uses token's DEFAULT_ADMIN_ROLE holder
+   *
+   * @example
+   * ```typescript
+   * const { transaction, safeJson } = await service.generateRegisterAdmin(
+   *   JSON.stringify({
+   *     moduleAddress: "0x1234...",
+   *     tokenAddress: "0x5678...",
+   *     method: "owner"
+   *   }),
+   *   {
+   *     chainId: "84532",
+   *     safeAddress: "0xYourSafe",
+   *     ownerAddress: "0xYourOwner",
+   *     moduleAddress: "0x1234..."
+   *   }
+   * );
+   * ```
+   *
+   * @see {@link RegisterAdminGenerator} for raw transaction generation
+   * @see {@link RegisterAdminFormatter} for Safe JSON formatting
+   */
+  async generateRegisterAdmin(
+    inputJson: string,
+    metadata?: SafeRegisterAdminMetadata,
+  ): Promise<{
+    transaction: SafeTransactionDataBase;
+    safeJson: SafeTransactionBuilderJSON | null;
+  }> {
+    const result = await this.deps.registerAdminGenerator.generate(inputJson);
+
+    const safeJson = metadata
+      ? this.deps.registerAdminFormatter.format(
+          result,
+          parseJSON(inputJson, isRegisterAdminInput),
+          metadata,
+        )
+      : null;
+
+    return { transaction: result.transaction, safeJson };
+  }
+
+  /**
+   * Generates TokenAdminRegistry transaction with optional Safe JSON formatting.
+   *
+   * Creates a transaction for interacting with the TokenAdminRegistry contract.
+   * Supports three methods: set-pool, transfer-admin, and accept-admin.
+   *
+   * @param inputJson - JSON string containing TokenAdminRegistry parameters
+   * @param metadata - Optional Safe metadata (if provided, Safe JSON will be generated)
+   *
+   * @returns Object containing raw transaction and optional Safe JSON
+   *
+   * @remarks
+   * Methods:
+   * - `set-pool`: Sets the pool for a token via setPool(localToken, pool)
+   * - `transfer-admin`: Transfers admin role via transferAdminRole(localToken, newAdmin)
+   * - `accept-admin`: Accepts admin role via acceptAdminRole(localToken)
+   *
+   * @example
+   * ```typescript
+   * const { transaction, safeJson } = await service.generateTokenAdminRegistry(
+   *   JSON.stringify({
+   *     registryAddress: "0x1234...",
+   *     tokenAddress: "0x5678...",
+   *     method: "set-pool",
+   *     poolAddress: "0xabcd..."
+   *   }),
+   *   {
+   *     chainId: "84532",
+   *     safeAddress: "0xYourSafe",
+   *     ownerAddress: "0xYourOwner",
+   *     registryAddress: "0x1234..."
+   *   }
+   * );
+   * ```
+   *
+   * @see {@link TokenAdminRegistryGenerator} for raw transaction generation
+   * @see {@link TokenAdminRegistryFormatter} for Safe JSON formatting
+   */
+  async generateTokenAdminRegistry(
+    inputJson: string,
+    metadata?: SafeTokenAdminRegistryMetadata,
+  ): Promise<{
+    transaction: SafeTransactionDataBase;
+    safeJson: SafeTransactionBuilderJSON | null;
+  }> {
+    const result = await this.deps.tokenAdminRegistryGenerator.generate(inputJson);
+
+    const safeJson = metadata
+      ? this.deps.tokenAdminRegistryFormatter.format(
+          result,
+          parseJSON(inputJson, isTokenAdminRegistryInput),
+          metadata,
+        )
+      : null;
+
+    return { transaction: result.transaction, safeJson };
   }
 }
 

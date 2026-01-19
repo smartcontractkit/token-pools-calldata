@@ -81,6 +81,8 @@ export function createMockInterfaceProvider(interfaces: {
   TokenPool?: Interface;
   TokenPoolFactory?: Interface;
   BurnMintERC20?: Interface;
+  RegistryModuleOwnerCustom?: Interface;
+  TokenAdminRegistry?: Interface;
 }): IInterfaceProvider {
   return {
     getTokenPoolInterface(): Interface {
@@ -100,6 +102,18 @@ export function createMockInterfaceProvider(interfaces: {
         throw new Error('No mock interface provided for BurnMintERC20');
       }
       return interfaces.BurnMintERC20;
+    },
+    getRegistryModuleOwnerCustomInterface(): Interface {
+      if (!interfaces.RegistryModuleOwnerCustom) {
+        throw new Error('No mock interface provided for RegistryModuleOwnerCustom');
+      }
+      return interfaces.RegistryModuleOwnerCustom;
+    },
+    getTokenAdminRegistryInterface(): Interface {
+      if (!interfaces.TokenAdminRegistry) {
+        throw new Error('No mock interface provided for TokenAdminRegistry');
+      }
+      return interfaces.TokenAdminRegistry;
     },
   };
 }

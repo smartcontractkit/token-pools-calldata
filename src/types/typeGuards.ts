@@ -22,6 +22,8 @@ import { PoolDeploymentParams } from './poolDeployment';
 import { MintParams, RoleManagementParams } from './tokenMint';
 import { AllowListUpdatesInput } from './allowList';
 import { SetChainRateLimiterConfigInput } from './rateLimiter';
+import { RegisterAdminInput } from './registerAdmin';
+import { TokenAdminRegistryInput } from './tokenAdminRegistry';
 
 /**
  * Type guard for plain JavaScript objects.
@@ -316,4 +318,76 @@ export function isSetChainRateLimiterConfigInput(
 export function isRoleManagementParams(value: unknown): value is RoleManagementParams {
   if (!isObject(value)) return false;
   return typeof value.pool === 'string' && typeof value.roleType === 'string';
+}
+
+/**
+ * Type predicate for RegisterAdminInput.
+ *
+ * Performs basic structural validation of register admin parameters.
+ *
+ * @param value - Value to check
+ * @returns True if value has RegisterAdminInput structure
+ *
+ * @remarks
+ * Checks for presence of `moduleAddress`, `tokenAddress`, and `method` fields.
+ * Full validation including address format and enum values should be done using
+ * `registerAdminInputSchema.parse()`.
+ *
+ * @example
+ * ```typescript
+ * const input: unknown = JSON.parse(fileContents);
+ *
+ * if (isRegisterAdminInput(input)) {
+ *   // TypeScript knows input is RegisterAdminInput
+ *   const validated = registerAdminInputSchema.parse(input);
+ * }
+ * ```
+ *
+ * @see {@link registerAdminInputSchema} for full validation
+ *
+ * @public
+ */
+export function isRegisterAdminInput(value: unknown): value is RegisterAdminInput {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.moduleAddress === 'string' &&
+    typeof value.tokenAddress === 'string' &&
+    typeof value.method === 'string'
+  );
+}
+
+/**
+ * Type predicate for TokenAdminRegistryInput.
+ *
+ * Performs basic structural validation of TokenAdminRegistry parameters.
+ *
+ * @param value - Value to check
+ * @returns True if value has TokenAdminRegistryInput structure
+ *
+ * @remarks
+ * Checks for presence of `registryAddress`, `tokenAddress`, and `method` fields.
+ * Full validation including address format and enum values should be done using
+ * `tokenAdminRegistryInputSchema.parse()`.
+ *
+ * @example
+ * ```typescript
+ * const input: unknown = JSON.parse(fileContents);
+ *
+ * if (isTokenAdminRegistryInput(input)) {
+ *   // TypeScript knows input is TokenAdminRegistryInput
+ *   const validated = tokenAdminRegistryInputSchema.parse(input);
+ * }
+ * ```
+ *
+ * @see {@link tokenAdminRegistryInputSchema} for full validation
+ *
+ * @public
+ */
+export function isTokenAdminRegistryInput(value: unknown): value is TokenAdminRegistryInput {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.registryAddress === 'string' &&
+    typeof value.tokenAddress === 'string' &&
+    typeof value.method === 'string'
+  );
 }

@@ -10,13 +10,18 @@ import { createTokenDeploymentFormatter } from '../../formatters/tokenDeployment
 import { createPoolDeploymentFormatter } from '../../formatters/poolDeploymentFormatter';
 import { createChainUpdateFormatter } from '../../formatters/chainUpdateFormatter';
 import { createRateLimiterFormatter } from '../../formatters/rateLimiterFormatter';
+import { createRegisterAdminFormatter } from '../../formatters/registerAdminFormatter';
+import { createTokenAdminRegistryFormatter } from '../../formatters/tokenAdminRegistryFormatter';
 import { createMockInterfaceProvider } from '../helpers';
 import {
   TokenPool__factory,
   TokenPoolFactory__factory,
   FactoryBurnMintERC20__factory,
+  RegistryModuleOwnerCustom__factory,
+  TokenAdminRegistry__factory,
 } from '../../typechain';
 import { SafeOperationType } from '../../types/safe';
+import { IInterfaceProvider } from '../../interfaces';
 
 describe('Formatters', () => {
   let mockInterfaceProvider: ReturnType<typeof createMockInterfaceProvider>;
@@ -534,6 +539,385 @@ describe('Formatters', () => {
       const result = formatter.format(mockTransaction, input, mockPoolAddressMetadata);
 
       expect(result.transactions[0]?.contractMethod?.name).toBe('setChainRateLimiterConfig');
+    });
+  });
+
+  describe('RegisterAdminFormatter', () => {
+    let formatter: ReturnType<typeof createRegisterAdminFormatter>;
+    let registerAdminInterfaceProvider: IInterfaceProvider;
+
+    const mockModuleAddress = '0x1234567890123456789012345678901234567890';
+    const mockRegisterAdminMetadata = {
+      ...mockBasicMetadata,
+      moduleAddress: mockModuleAddress,
+    };
+
+    beforeEach(() => {
+      // Create an interface provider that includes RegistryModuleOwnerCustom
+      registerAdminInterfaceProvider = {
+        getTokenPoolInterface: () => TokenPool__factory.createInterface(),
+        getTokenPoolFactoryInterface: () => TokenPoolFactory__factory.createInterface(),
+        getFactoryBurnMintERC20Interface: () => FactoryBurnMintERC20__factory.createInterface(),
+        getRegistryModuleOwnerCustomInterface: () =>
+          RegistryModuleOwnerCustom__factory.createInterface(),
+        getTokenAdminRegistryInterface: () => TokenAdminRegistry__factory.createInterface(),
+      };
+      formatter = createRegisterAdminFormatter(registerAdminInterfaceProvider);
+    });
+
+    it('should format get-ccip-admin registration transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaGetCCIPAdmin' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'get-ccip-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.meta.name).toBe('Register CCIP Admin');
+      expect(result.meta.description).toContain('getCCIPAdmin() function');
+      expect(result.meta.description).toContain(params.tokenAddress);
+    });
+
+    it('should format owner registration transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaOwner' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'owner' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.meta.name).toBe('Register CCIP Admin');
+      expect(result.meta.description).toContain('owner() function');
+      expect(result.meta.description).toContain('Ownable pattern');
+    });
+
+    it('should format access-control registration transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAccessControlDefaultAdmin' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'access-control' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.meta.name).toBe('Register CCIP Admin');
+      expect(result.meta.description).toContain('DEFAULT_ADMIN_ROLE');
+      expect(result.meta.description).toContain('AccessControl pattern');
+    });
+
+    it('should include token address in description', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaOwner' as const,
+      };
+
+      const tokenAddress = '0x779877A7B0D9E8603169DdbD7836e478b4624789';
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress,
+        method: 'owner' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.meta.description).toContain(tokenAddress);
+    });
+
+    it('should use correct chain ID from metadata', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaOwner' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'owner' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.chainId).toBe(mockBasicMetadata.chainId);
+    });
+
+    it('should include safe address in meta', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaOwner' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'owner' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.meta.createdFromSafeAddress).toBe(mockBasicMetadata.safeAddress);
+      expect(result.meta.createdFromOwnerAddress).toBe(mockBasicMetadata.ownerAddress);
+    });
+
+    it('should have single transaction in result', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'registerAdminViaOwner' as const,
+      };
+
+      const params = {
+        moduleAddress: mockModuleAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'owner' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+      expect(result.transactions).toHaveLength(1);
+    });
+
+    it('should use correct contract method name for each method', () => {
+      const methods = [
+        { method: 'get-ccip-admin', functionName: 'registerAdminViaGetCCIPAdmin' },
+        { method: 'owner', functionName: 'registerAdminViaOwner' },
+        { method: 'access-control', functionName: 'registerAccessControlDefaultAdmin' },
+      ] as const;
+
+      methods.forEach(({ method, functionName }) => {
+        const transactionResult = {
+          transaction: mockTransaction,
+          functionName,
+        };
+
+        const params = {
+          moduleAddress: mockModuleAddress,
+          tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+          method,
+        };
+
+        const result = formatter.format(transactionResult, params, mockRegisterAdminMetadata);
+
+        expect(result.transactions[0]?.contractMethod?.name).toBe(functionName);
+      });
+    });
+  });
+
+  describe('TokenAdminRegistryFormatter', () => {
+    let formatter: ReturnType<typeof createTokenAdminRegistryFormatter>;
+    let tokenAdminRegistryInterfaceProvider: IInterfaceProvider;
+
+    const mockRegistryAddress = '0x1234567890123456789012345678901234567890';
+    const mockTokenAdminRegistryMetadata = {
+      ...mockBasicMetadata,
+      registryAddress: mockRegistryAddress,
+    };
+
+    beforeEach(() => {
+      // Create an interface provider that includes TokenAdminRegistry
+      tokenAdminRegistryInterfaceProvider = {
+        getTokenPoolInterface: () => TokenPool__factory.createInterface(),
+        getTokenPoolFactoryInterface: () => TokenPoolFactory__factory.createInterface(),
+        getFactoryBurnMintERC20Interface: () => FactoryBurnMintERC20__factory.createInterface(),
+        getRegistryModuleOwnerCustomInterface: () =>
+          RegistryModuleOwnerCustom__factory.createInterface(),
+        getTokenAdminRegistryInterface: () => TokenAdminRegistry__factory.createInterface(),
+      };
+      formatter = createTokenAdminRegistryFormatter(tokenAdminRegistryInterfaceProvider);
+    });
+
+    it('should format set-pool transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'setPool' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'set-pool' as const,
+        poolAddress: '0xabcdef1234567890123456789012345678901234',
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.meta.name).toBe('TokenAdminRegistry: Set pool');
+      expect(result.meta.description).toContain('Set pool');
+      expect(result.meta.description).toContain(params.tokenAddress);
+    });
+
+    it('should format transfer-admin transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'transferAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'transfer-admin' as const,
+        newAdminAddress: '0xnewadmin123456789012345678901234567890ab',
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.meta.name).toBe('TokenAdminRegistry: Transfer admin role');
+      expect(result.meta.description).toContain('Transfer admin role');
+      expect(result.meta.description).toContain('transferAdminRole() function');
+    });
+
+    it('should format accept-admin transaction', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.meta.name).toBe('TokenAdminRegistry: Accept admin role');
+      expect(result.meta.description).toContain('Accept admin role');
+      expect(result.meta.description).toContain('acceptAdminRole() function');
+    });
+
+    it('should include token address in description', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const tokenAddress = '0x779877A7B0D9E8603169DdbD7836e478b4624789';
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress,
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.meta.description).toContain(tokenAddress);
+    });
+
+    it('should use correct chain ID from metadata', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.chainId).toBe(mockBasicMetadata.chainId);
+    });
+
+    it('should include safe address in meta', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.meta.createdFromSafeAddress).toBe(mockBasicMetadata.safeAddress);
+      expect(result.meta.createdFromOwnerAddress).toBe(mockBasicMetadata.ownerAddress);
+    });
+
+    it('should have single transaction in result', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+
+      expect(result.transactions).toHaveLength(1);
+    });
+
+    it('should use correct contract method name for set-pool method', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'setPool' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'set-pool' as const,
+        poolAddress: '0xabcdef1234567890123456789012345678901234',
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+      expect(result.transactions[0]?.contractMethod?.name).toBe('setPool');
+    });
+
+    it('should use correct contract method name for transfer-admin method', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'transferAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'transfer-admin' as const,
+        newAdminAddress: '0xnewadmin123456789012345678901234567890ab',
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+      expect(result.transactions[0]?.contractMethod?.name).toBe('transferAdminRole');
+    });
+
+    it('should use correct contract method name for accept-admin method', () => {
+      const transactionResult = {
+        transaction: mockTransaction,
+        functionName: 'acceptAdminRole' as const,
+      };
+
+      const params = {
+        registryAddress: mockRegistryAddress,
+        tokenAddress: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+        method: 'accept-admin' as const,
+      };
+
+      const result = formatter.format(transactionResult, params, mockTokenAdminRegistryMetadata);
+      expect(result.transactions[0]?.contractMethod?.name).toBe('acceptAdminRole');
     });
   });
 

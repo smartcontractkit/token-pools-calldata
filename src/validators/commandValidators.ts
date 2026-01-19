@@ -102,6 +102,19 @@ interface GrantRolesOptions extends BaseOptions {
 }
 
 /**
+ * Register admin command options.
+ *
+ * @internal
+ */
+interface RegisterAdminOptions extends BaseOptions {
+  /** RegistryModuleOwnerCustom contract address (required) */
+  module: string;
+
+  /** Token contract address (required) */
+  token: string;
+}
+
+/**
  * Validates Safe JSON format parameters if format is safe-json.
  *
  * Internal helper that checks if the output format is safe-json and validates
@@ -382,6 +395,121 @@ export function validateRateLimiterOptions(options: PoolOperationOptions): void 
 export function validateGrantRolesOptions(options: GrantRolesOptions): void {
   validateTokenAddress(options.token);
   validatePoolAddress(options.pool);
+  validateOptionalSafeParams(options);
+  validateSafeJsonFormat(options);
+}
+
+/**
+ * Validates register admin command options.
+ *
+ * Validates all parameters for the `generate-register-admin` CLI command.
+ *
+ * @param options - Register admin command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required module address format (RegistryModuleOwnerCustom)
+ * 2. Validate required token address format
+ * 3. Validate optional Safe and owner addresses (if provided)
+ * 4. If format is safe-json: Validate chainId, safe, owner are all provided
+ *
+ * @example
+ * ```typescript
+ * // Valid register admin command
+ * validateRegisterAdminOptions({
+ *   module: '0x1234567890123456789012345678901234567890',
+ *   token: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+ *   format: 'safe-json',
+ *   chainId: '84532',
+ *   safe: '0xSafe',
+ *   owner: '0xOwner'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateRegisterAdminOptions(options: RegisterAdminOptions): void {
+  validateOptionalAddress(options.module, 'module address');
+  validateTokenAddress(options.token);
+  validateOptionalSafeParams(options);
+  validateSafeJsonFormat(options);
+}
+
+/**
+ * TokenAdminRegistry command options.
+ *
+ * @internal
+ */
+interface TokenAdminRegistryOptions extends BaseOptions {
+  /** TokenAdminRegistry contract address (required) */
+  tokenAdminRegistry: string;
+
+  /** Token contract address (required) */
+  token: string;
+
+  /** Method: 'set-pool', 'transfer-admin', or 'accept-admin' (required) */
+  method: 'set-pool' | 'transfer-admin' | 'accept-admin';
+
+  /** Pool address (required for set-pool method) */
+  pool?: string;
+
+  /** New admin address (required for transfer-admin method) */
+  newAdmin?: string;
+}
+
+/**
+ * Validates TokenAdminRegistry command options.
+ *
+ * Validates all parameters for the `generate-token-admin-registry` CLI command.
+ *
+ * @param options - TokenAdminRegistry command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required registry address format (TokenAdminRegistry)
+ * 2. Validate required token address format
+ * 3. Validate method-specific parameters:
+ *    - If method is 'set-pool': pool address must be provided
+ *    - If method is 'transfer-admin': newAdmin address must be provided
+ * 4. Validate optional Safe and owner addresses (if provided)
+ * 5. If format is safe-json: Validate chainId, safe, owner are all provided
+ *
+ * @example
+ * ```typescript
+ * // Valid set-pool command
+ * validateTokenAdminRegistryOptions({
+ *   tokenAdminRegistry: '0x1234567890123456789012345678901234567890',
+ *   token: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+ *   method: 'set-pool',
+ *   pool: '0xabcdef1234567890123456789012345678901234',
+ *   format: 'safe-json',
+ *   chainId: '84532',
+ *   safe: '0xSafe',
+ *   owner: '0xOwner'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateTokenAdminRegistryOptions(options: TokenAdminRegistryOptions): void {
+  validateOptionalAddress(options.tokenAdminRegistry, 'token admin registry address');
+  validateTokenAddress(options.token);
+
+  // Method-specific validation
+  if (options.method === 'set-pool' && !options.pool) {
+    throw new Error('Pool address (--pool) is required for set-pool method');
+  }
+
+  if (options.method === 'transfer-admin' && !options.newAdmin) {
+    throw new Error('New admin address (--new-admin) is required for transfer-admin method');
+  }
+
+  // Validate pool and newAdmin addresses if provided
+  validateOptionalAddress(options.pool, 'pool address');
+  validateOptionalAddress(options.newAdmin, 'new admin address');
+
   validateOptionalSafeParams(options);
   validateSafeJsonFormat(options);
 }

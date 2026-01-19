@@ -22,7 +22,10 @@ import { OutputDestination, OutputWriterFactory } from './OutputWriter';
  *
  * @public
  */
-export type OutputFormat = typeof OUTPUT_FORMAT.CALLDATA | typeof OUTPUT_FORMAT.SAFE_JSON;
+export type OutputFormat =
+  | typeof OUTPUT_FORMAT.CALLDATA
+  | typeof OUTPUT_FORMAT.SAFE_JSON
+  | typeof OUTPUT_FORMAT.JSON;
 
 /**
  * Service for handling CLI output operations.
@@ -200,12 +203,75 @@ export class OutputService {
   }
 
   /**
+   * Write transaction data as JSON.
+   *
+   * Writes transaction data (to, value, data) as formatted JSON to console or file.
+   * This format is wallet-agnostic and can be used with any SDK or CLI.
+   *
+   * @param transaction - Transaction or array of transactions
+   * @param outputPath - Optional file path (if not provided, writes to console)
+   * @returns Promise that resolves when write is complete
+   *
+   * @remarks
+   * Output Format:
+   * - Single transaction: `{ "to": "0x...", "value": "0", "data": "0x..." }`
+   * - Multiple transactions: Array of transaction objects
+   *
+   * Use Cases:
+   * - Integration with third-party wallet SDKs (Avocado, etc.)
+   * - Programmatic transaction submission
+   * - Copy/paste into wallet interfaces
+   *
+   * @example
+   * ```typescript
+   * const service = new OutputService();
+   * const tx = {
+   *   to: '0x1234...',
+   *   value: '0',
+   *   data: '0xabcdef...',
+   *   operation: SafeOperationType.Call
+   * };
+   *
+   * // Write to console
+   * await service.writeTransactionJson(tx);
+   * // Output: { "to": "0x1234...", "value": "0", "data": "0xabcdef..." }
+   *
+   * // Write to file
+   * await service.writeTransactionJson(tx, 'output/tx.json');
+   * ```
+   */
+  async writeTransactionJson(
+    transaction: SafeTransactionDataBase | SafeTransactionDataBase[],
+    outputPath?: string,
+  ): Promise<void> {
+    const writer = OutputWriterFactory.createTransactionJsonWriter();
+    const destination: OutputDestination = outputPath
+      ? { type: 'file', path: outputPath }
+      : { type: 'console' };
+
+    // Extract only to, value, data fields (omit operation which is Safe-specific)
+    const extractTxData = (
+      tx: SafeTransactionDataBase,
+    ): { to: string; value: string; data: string } => ({
+      to: tx.to,
+      value: tx.value,
+      data: tx.data,
+    });
+
+    const txData = Array.isArray(transaction)
+      ? transaction.map(extractTxData)
+      : extractTxData(transaction);
+
+    await writer.write(JSON.stringify(txData), destination);
+  }
+
+  /**
    * Write output based on format selection.
    *
    * Convenience method that automatically selects the appropriate write method
    * based on the output format. Handles format validation and routing.
    *
-   * @param format - Output format ('calldata' or 'safe-json')
+   * @param format - Output format ('calldata', 'safe-json', or 'json')
    * @param transaction - Transaction or array of transactions
    * @param safeJson - Safe JSON (required if format is 'safe-json')
    * @param outputPath - Optional file path
@@ -215,6 +281,7 @@ export class OutputService {
    * @remarks
    * Format Routing:
    * - 'safe-json': Calls writeSafeJson() with safeJson parameter
+   * - 'json': Calls writeTransactionJson() with transaction parameter
    * - 'calldata': Calls writeCalldata() with transaction parameter
    *
    * Validation:
@@ -223,7 +290,7 @@ export class OutputService {
    *
    * Use Case:
    * - Generic output handling when format is determined at runtime
-   * - CLI handlers that support both output formats
+   * - CLI handlers that support multiple output formats
    *
    * @example
    * ```typescript
@@ -245,6 +312,14 @@ export class OutputService {
    *   transaction,
    *   safeJson,
    *   'output/safe.json'
+   * );
+   *
+   * // Write transaction JSON (wallet-agnostic)
+   * await service.write(
+   *   OUTPUT_FORMAT.JSON,
+   *   transaction,
+   *   null,
+   *   'output/tx.json'
    * );
    * ```
    *
@@ -281,6 +356,8 @@ export class OutputService {
         throw new Error('Safe JSON format requested but no Safe JSON provided');
       }
       await this.writeSafeJson(safeJson, outputPath);
+    } else if (format === OUTPUT_FORMAT.JSON) {
+      await this.writeTransactionJson(transaction, outputPath);
     } else {
       await this.writeCalldata(transaction, outputPath);
     }

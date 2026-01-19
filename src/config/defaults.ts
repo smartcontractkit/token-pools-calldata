@@ -172,6 +172,7 @@ export const SAFE_OPERATION = {
  * Format Options:
  * - **CALLDATA**: Raw hex-encoded calldata (simple, direct)
  * - **SAFE_JSON**: Safe Transaction Builder JSON (requires chainId, safe, owner)
+ * - **JSON**: Raw transaction JSON with to, value, data fields (wallet-agnostic)
  *
  * Usage Context:
  * - CLI flag validation: `-f, --format <type>`
@@ -185,7 +186,7 @@ export const SAFE_OPERATION = {
  * @example
  * ```typescript
  * // Format validation
- * const validFormats = Object.values(OUTPUT_FORMAT); // ['calldata', 'safe-json']
+ * const validFormats = Object.values(OUTPUT_FORMAT); // ['calldata', 'safe-json', 'json']
  *
  * if (!validFormats.includes(format)) {
  *   throw new Error('Invalid format');
@@ -198,7 +199,10 @@ export const SAFE_OPERATION = {
  * if (format === OUTPUT_FORMAT.SAFE_JSON) {
  *   // Generate Safe JSON output
  *   return generateSafeJSON(transactions, options);
- * } else if (format === OUTPUT_FORMAT.CALLDATA) {
+ * } else if (format === OUTPUT_FORMAT.JSON) {
+ *   // Generate raw transaction JSON
+ *   return generateTransactionJSON(transactions);
+ * } else {
  *   // Generate raw calldata
  *   return generateCalldata(transactions);
  * }
@@ -212,6 +216,9 @@ export const OUTPUT_FORMAT = {
 
   /** Safe Transaction Builder JSON format */
   SAFE_JSON: 'safe-json' as const,
+
+  /** Raw transaction JSON format (wallet-agnostic: to, value, data) */
+  JSON: 'json' as const,
 } as const;
 
 /**
@@ -223,7 +230,7 @@ export const OUTPUT_FORMAT = {
  * @remarks
  * Type Definition:
  * - Extracts all values from OUTPUT_FORMAT object
- * - Results in: 'calldata' | 'safe-json'
+ * - Results in: 'calldata' | 'safe-json' | 'json'
  * - Automatically stays in sync with OUTPUT_FORMAT changes
  *
  * Usage:
