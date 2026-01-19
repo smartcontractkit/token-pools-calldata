@@ -394,3 +394,55 @@ export class AcceptOwnershipError extends GeneratorError {
     super(message, GeneratorErrorCode.GENERATION_FAILED, context, cause);
   }
 }
+
+/**
+ * Error thrown during register admin transaction generation.
+ *
+ * Used when generating transactions to register as CCIP admin for a token
+ * via the RegistryModuleOwnerCustom contract. Common causes include invalid
+ * module or token addresses, or invalid registration method.
+ *
+ * @example
+ * ```typescript
+ * throw new RegisterAdminError(
+ *   'Invalid registration method',
+ *   {
+ *     method: 'invalid',
+ *     expectedMethods: ['get-ccip-admin', 'owner', 'access-control']
+ *   }
+ * );
+ * ```
+ *
+ * @public
+ */
+export class RegisterAdminError extends GeneratorError {
+  constructor(message: string, context?: ErrorContext, cause?: Error) {
+    super(message, GeneratorErrorCode.GENERATION_FAILED, context, cause);
+  }
+}
+
+/**
+ * Error thrown during TokenAdminRegistry transaction generation.
+ *
+ * Used when generating transactions to interact with the TokenAdminRegistry
+ * contract (setPool, transferAdminRole, acceptAdminRole). Common causes include
+ * invalid registry, token, pool, or admin addresses, or invalid method type.
+ *
+ * @example
+ * ```typescript
+ * throw new TokenAdminRegistryError(
+ *   'Invalid method type',
+ *   {
+ *     method: 'invalid',
+ *     expectedMethods: ['set-pool', 'transfer-admin', 'accept-admin']
+ *   }
+ * );
+ * ```
+ *
+ * @public
+ */
+export class TokenAdminRegistryError extends GeneratorError {
+  constructor(message: string, context?: ErrorContext, cause?: Error) {
+    super(message, GeneratorErrorCode.GENERATION_FAILED, context, cause);
+  }
+}

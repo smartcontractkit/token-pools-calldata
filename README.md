@@ -9,7 +9,7 @@
 >
 > _This repository contains example code of how a Chainlink product or service can be used. It is provided solely to demonstrate a potential integration approach and is not intended for production. This repository is provided "AS IS" without warranties of any kind, has not been audited, may be incomplete, and may be missing key checks or error handling mechanisms. You are solely responsible for testing and simulating all code and transactions, validating functionality on testnet environments, and conducting comprehensive security, technical, and engineering reviews before deploying anything to any mainnet or production environments. SmartContract Chainlink Limited SEZC (“Chainlink Labs”) disclaims all liability for any loss or damage arising from or related to your use of or reliance on this repository. Chainlink Labs does not represent or warrant that the repository will be uninterrupted, available at any particular time, or error-free._
 
-A CLI tool to generate calldata for CCIP TokenPool contract interactions. Supports deploying tokens and pools across EVM chains, configuring cross-chain settings, and managing token permissions. Outputs raw calldata or Safe Transaction Builder JSON.
+A CLI tool to generate calldata for CCIP TokenPool contract interactions. Supports deploying tokens and pools across EVM chains, configuring cross-chain settings, and managing token permissions. Outputs raw calldata, Safe Transaction Builder JSON, or wallet-agnostic transaction JSON.
 
 ## Table of Contents
 
@@ -24,6 +24,8 @@ A CLI tool to generate calldata for CCIP TokenPool contract interactions. Suppor
   - [generate-pool-deployment](#generate-pool-deployment)
   - [generate-chain-update](#generate-chain-update)
   - [generate-accept-ownership](#generate-accept-ownership)
+  - [generate-register-admin](#generate-register-admin)
+  - [generate-token-admin-registry](#generate-token-admin-registry)
   - [generate-grant-roles](#generate-grant-roles)
   - [generate-mint](#generate-mint)
   - [generate-allow-list-updates](#generate-allow-list-updates)
@@ -56,7 +58,11 @@ This CLI tool generates transactions in JSON format compatible with Safe wallet 
 - **Grant/revoke roles** (mint and burn permissions)
 - **Mint tokens** for testing and operations
 
-**Output Format**: Generates Safe Transaction Builder JSON files that can be imported directly into the Safe UI, or raw calldata for direct contract interaction.
+**Output Formats**:
+
+- **Safe JSON** (`-f safe-json`): Safe Transaction Builder JSON files for Safe UI import
+- **Raw Calldata** (`-f calldata`): Hex-encoded function calls for direct contract interaction
+- **Transaction JSON** (`-f json`): Wallet-agnostic JSON with `to`, `value`, `data` fields for use with any SDK (ethers.js, viem, Avocado, etc.)
 
 ## Prerequisites
 
@@ -174,7 +180,7 @@ pnpm start generate-token-deployment \
 | `-i`     | Path to input JSON file with token configuration                                                           |
 | `-d`     | TokenPoolFactory contract address (from Chain Reference table above)                                       |
 | `--salt` | 32-byte hex value for deterministic deployment. Use the same salt on both chains for predictable addresses |
-| `-f`     | Output format: `safe-json` for Safe Transaction Builder, `calldata` for raw hex                            |
+| `-f`     | Output format: `safe-json` for Safe Transaction Builder, `calldata` for raw hex, `json` for wallet-agnostic JSON |
 | `-s`     | Your Safe multisig address                                                                                 |
 | `-w`     | Address of the Safe owner signing the transaction                                                          |
 | `-c`     | Chain ID where the transaction will execute                                                                |
@@ -405,7 +411,7 @@ pnpm start generate-token-deployment \
   -i <input-file> \
   -d <factory-address> \
   --salt <32-byte-hex> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -417,7 +423,7 @@ pnpm start generate-token-deployment \
 - `-i, --input <path>`: Input JSON file (required)
 - `-d, --deployer <address>`: TokenPoolFactory address (required)
 - `--salt <bytes32>`: 32-byte salt for CREATE2 (required)
-- `-f, --format <type>`: `calldata` or `safe-json` (default: `calldata`)
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
 - `-s, --safe <address>`: Safe address (required for safe-json)
 - `-w, --owner <address>`: Owner address (required for safe-json)
 - `-c, --chain-id <id>`: Chain ID (required for safe-json)
@@ -451,7 +457,7 @@ pnpm start generate-pool-deployment \
   -i <input-file> \
   -d <factory-address> \
   --salt <32-byte-hex> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -493,7 +499,7 @@ Configure cross-chain connections for a TokenPool. Can add new chains, remove ex
 pnpm start generate-chain-update \
   -i <input-file> \
   -p <pool-address> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -504,7 +510,7 @@ pnpm start generate-chain-update \
 
 - `-i, --input <path>`: Input JSON file (required)
 - `-p, --token-pool <address>`: TokenPool address (optional, defaults to placeholder)
-- `-f, --format <type>`: `calldata` or `safe-json` (default: `calldata`)
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
 - `-s, --safe <address>`: Safe address (required for safe-json)
 - `-w, --owner <address>`: Owner address (required for safe-json)
 - `-c, --chain-id <id>`: Chain ID (required for safe-json)
@@ -576,7 +582,7 @@ pnpm start generate-mint \
   -t <token-address> \
   -r <receiver-address> \
   -a <amount> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -588,7 +594,7 @@ pnpm start generate-mint \
 - `-t, --token <address>`: Token contract address (required)
 - `-r, --receiver <address>`: Receiver address (required)
 - `-a, --amount <amount>`: Amount to mint (string, required)
-- `-f, --format <type>`: `calldata` or `safe-json` (default: `calldata`)
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
 - `-s, --safe <address>`: Safe address (required for safe-json)
 - `-w, --owner <address>`: Owner address (required for safe-json)
 - `-c, --chain-id <id>`: Chain ID (required for safe-json)
@@ -619,7 +625,7 @@ Accept ownership of a contract using the two-step ownership transfer pattern.
 ```bash
 pnpm start generate-accept-ownership \
   -a <contract-address> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -629,7 +635,7 @@ pnpm start generate-accept-ownership \
 **Options:**
 
 - `-a, --address <address>`: Contract address to accept ownership of (required)
-- `-f, --format <type>`: `calldata` or `safe-json` (default: `calldata`)
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
 - `-s, --safe <address>`: Safe address (required for safe-json)
 - `-w, --owner <address>`: Owner address (required for safe-json)
 - `-c, --chain-id <id>`: Chain ID (required for safe-json)
@@ -657,6 +663,193 @@ pnpm start generate-accept-ownership \
   -o output/accept-pool-ownership.json
 ```
 
+### generate-register-admin
+
+Register as the CCIP admin for a token via the RegistryModuleOwnerCustom contract. This is required before you can set pool configurations for tokens you own.
+
+> **When to use:** After deploying a token, you need to register as its CCIP admin in the Token Admin Registry before configuring pools. The registration method depends on how your token manages admin access.
+
+**Usage:**
+
+```bash
+pnpm start generate-register-admin \
+  -m <module-address> \
+  -t <token-address> \
+  --method <registration-method> \
+  [-f calldata|safe-json|json] \
+  [-s <safe-address>] \
+  [-w <owner-address>] \
+  [-c <chain-id>] \
+  [-o <output-file>]
+```
+
+**Options:**
+
+- `-m, --module <address>`: RegistryModuleOwnerCustom contract address (required)
+- `-t, --token <address>`: Token contract address (required)
+- `--method <type>`: Registration method (required) - one of:
+  - `get-ccip-admin`: Use token's `getCCIPAdmin()` function
+  - `owner`: Use token's `owner()` function (standard Ownable pattern)
+  - `access-control`: Use token's `DEFAULT_ADMIN_ROLE` holder
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
+- `-s, --safe <address>`: Safe address (required for safe-json)
+- `-w, --owner <address>`: Owner address (required for safe-json)
+- `-c, --chain-id <id>`: Chain ID (required for safe-json)
+- `-o, --output <path>`: Output file (optional, defaults to stdout)
+
+**Registration Methods:**
+
+| Method | When to Use | Token Requirement |
+|--------|-------------|-------------------|
+| `get-ccip-admin` | Token has a dedicated CCIP admin function | Must implement `getCCIPAdmin()` |
+| `owner` | Token uses standard Ownable pattern | Must implement `owner()` |
+| `access-control` | Token uses OpenZeppelin AccessControl | Must have `DEFAULT_ADMIN_ROLE` |
+
+**Finding the RegistryModuleOwnerCustom Address:**
+
+The RegistryModuleOwnerCustom contract address varies by chain. Find it in the CCIP API:
+- **Mainnet**: https://docs.chain.link/api/ccip/v1/chains?environment=mainnet
+- **Testnet**: https://docs.chain.link/api/ccip/v1/chains?environment=testnet
+
+Navigate to `data > evm > [chainId] > registryModuleOwnerCustom`.
+
+**Examples:**
+
+```bash
+# Register using owner() method (most common for Ownable tokens)
+pnpm start generate-register-admin \
+  -m 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  -t 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method owner \
+  -f safe-json \
+  -s 0xYourSafe \
+  -w 0xYourOwner \
+  -c 84532 \
+  -o output/register-admin.json
+
+# Register using getCCIPAdmin() method
+pnpm start generate-register-admin \
+  -m 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  -t 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method get-ccip-admin \
+  -f safe-json \
+  -s 0xYourSafe \
+  -w 0xYourOwner \
+  -c 84532
+
+# Register using AccessControl DEFAULT_ADMIN_ROLE
+pnpm start generate-register-admin \
+  -m 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  -t 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method access-control \
+  -f safe-json \
+  -s 0xYourSafe \
+  -w 0xYourOwner \
+  -c 84532
+```
+
+### generate-token-admin-registry
+
+Interact with the TokenAdminRegistry contract to manage pool associations and admin role transfers for tokens.
+
+> **When to use:** After registering as CCIP admin, use this command to set the pool for your token, transfer admin role to another address, or accept an admin role that was transferred to you.
+
+**Usage:**
+
+```bash
+pnpm start generate-token-admin-registry \
+  --token-admin-registry <registry-address> \
+  --token <token-address> \
+  --method <set-pool|transfer-admin|accept-admin> \
+  [--pool <pool-address>] \
+  [--new-admin <new-admin-address>] \
+  [--format calldata|safe-json|json] \
+  [--safe <safe-address>] \
+  [--owner <owner-address>] \
+  [--chain-id <chain-id>] \
+  [--output <output-file>]
+```
+
+**Options:**
+
+- `--token-admin-registry <address>`: TokenAdminRegistry contract address (required)
+- `--token <address>`: Token contract address (required)
+- `--method <type>`: Method to call (required) - one of:
+  - `set-pool`: Set the pool for a token
+  - `transfer-admin`: Transfer admin role to a new address (two-step process)
+  - `accept-admin`: Accept the admin role for a token
+- `--pool <address>`: Pool address (required for `set-pool` method)
+- `--new-admin <address>`: New admin address (required for `transfer-admin` method)
+- `--format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
+- `--safe <address>`: Safe address (required for safe-json)
+- `--owner <address>`: Owner address (required for safe-json)
+- `--chain-id <id>`: Chain ID (required for safe-json)
+- `--output <path>`: Output file (optional, defaults to stdout)
+
+**Methods:**
+
+| Method | Description | Required Options |
+|--------|-------------|------------------|
+| `set-pool` | Sets the pool for a token in the registry | `--pool` |
+| `transfer-admin` | Initiates admin role transfer to new address | `--new-admin` |
+| `accept-admin` | Accepts pending admin role for a token | None |
+
+**Finding the TokenAdminRegistry Address:**
+
+The TokenAdminRegistry contract address varies by chain. Find it in the CCIP API:
+- **Mainnet**: https://docs.chain.link/api/ccip/v1/chains?environment=mainnet
+- **Testnet**: https://docs.chain.link/api/ccip/v1/chains?environment=testnet
+
+Navigate to `data > evm > [chainId] > tokenAdminRegistry`.
+
+**Examples:**
+
+```bash
+# Set pool for a token
+pnpm start generate-token-admin-registry \
+  --token-admin-registry 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  --token 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method set-pool \
+  --pool 0x1234567890123456789012345678901234567890 \
+  --format safe-json \
+  --safe 0xYourSafe \
+  --owner 0xYourOwner \
+  --chain-id 84532 \
+  --output output/set-pool.json
+
+# Transfer admin role to a new address (initiates two-step transfer)
+pnpm start generate-token-admin-registry \
+  --token-admin-registry 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  --token 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method transfer-admin \
+  --new-admin 0xNewAdminAddress123456789012345678901234 \
+  --format safe-json \
+  --safe 0xYourSafe \
+  --owner 0xYourOwner \
+  --chain-id 84532 \
+  --output output/transfer-admin.json
+
+# Accept admin role for a token (called by the new admin after transfer)
+pnpm start generate-token-admin-registry \
+  --token-admin-registry 0x62e731218d0D47305aba2BE3751E7EE9E5520790 \
+  --token 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --method accept-admin \
+  --format safe-json \
+  --safe 0xNewAdminSafe \
+  --owner 0xNewAdminOwner \
+  --chain-id 84532 \
+  --output output/accept-admin.json
+```
+
+**Admin Role Transfer Process:**
+
+Admin role transfer is a two-step process for security:
+
+1. **Current admin** calls `transfer-admin` to nominate a new admin
+2. **New admin** calls `accept-admin` to complete the transfer
+
+This prevents accidental transfers to incorrect addresses.
+
 ### generate-grant-roles
 
 Grant or revoke mint and/or burn permissions to/from a TokenPool.
@@ -671,7 +864,7 @@ pnpm start generate-grant-roles \
   -p <pool-address> \
   [--action grant|revoke] \
   [--role-type mint|burn|both] \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -684,7 +877,7 @@ pnpm start generate-grant-roles \
 - `-p, --pool <address>`: Pool contract address (required)
 - `--action <type>`: `grant` or `revoke` (default: `grant`)
 - `--role-type <type>`: `mint`, `burn`, or `both` (default: `both`)
-- `-f, --format <type>`: `calldata` or `safe-json` (default: `calldata`)
+- `-f, --format <type>`: `calldata`, `safe-json`, or `json` (default: `calldata`)
 - `-s, --safe <address>`: Safe address (required for safe-json)
 - `-w, --owner <address>`: Owner address (required for safe-json)
 - `-c, --chain-id <id>`: Chain ID (required for safe-json)
@@ -773,7 +966,7 @@ Update the sender allow list for a TokenPool. The allow list restricts which add
 pnpm start generate-allow-list-updates \
   -i <input-json-path> \
   -p <pool-address> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -830,7 +1023,7 @@ Update rate limiter configuration for a specific remote chain on a TokenPool.
 pnpm start generate-rate-limiter-config \
   -i <input-json-path> \
   -p <pool-address> \
-  [-f calldata|safe-json] \
+  [-f calldata|safe-json|json] \
   [-s <safe-address>] \
   [-w <owner-address>] \
   [-c <chain-id>] \
@@ -1016,7 +1209,7 @@ The tool automatically computes and logs the deterministic address before deploy
 
 ## Output Formats
 
-### Raw Calldata
+### Raw Calldata (`-f calldata`)
 
 Hex-encoded function call data. Use with:
 
@@ -1031,7 +1224,7 @@ Hex-encoded function call data. Use with:
 0x4a792d70000000000000000000000000000000000000000000000000000000000000...
 ```
 
-### Safe Transaction Builder JSON
+### Safe Transaction Builder JSON (`-f safe-json`)
 
 Structured JSON compatible with Safe Transaction Builder. Includes:
 
@@ -1059,6 +1252,50 @@ Structured JSON compatible with Safe Transaction Builder. Includes:
 ```
 
 Import this file directly into Safe Transaction Builder.
+
+### Transaction JSON (`-f json`)
+
+Wallet-agnostic JSON containing the core transaction fields. Use with any SDK or CLI tool:
+
+- ethers.js / viem / web3.js
+- Avocado SDK
+- Custom transaction submission scripts
+- Any tool that accepts standard transaction parameters
+
+**Single transaction example:**
+
+```json
+{
+  "to": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+  "value": "0",
+  "data": "0x40c10f19000000000000000000000000..."
+}
+```
+
+**Multiple transactions example** (e.g., revoking both roles):
+
+```json
+[
+  {
+    "to": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+    "value": "0",
+    "data": "0x..."
+  },
+  {
+    "to": "0x779877A7B0D9E8603169DdbD7836e478b4624789",
+    "value": "0",
+    "data": "0x..."
+  }
+]
+```
+
+**Usage with ethers.js:**
+
+```typescript
+const txData = JSON.parse(fs.readFileSync("output/tx.json", "utf-8"));
+const tx = await wallet.sendTransaction(txData);
+await tx.wait();
+```
 
 ## Troubleshooting
 

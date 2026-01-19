@@ -14,6 +14,8 @@ import {
   TokenPool__factory,
   TokenPoolFactory__factory,
   FactoryBurnMintERC20__factory,
+  RegistryModuleOwnerCustom__factory,
+  TokenAdminRegistry__factory,
 } from '../typechain';
 import { IInterfaceProvider } from '../interfaces';
 
@@ -124,6 +126,23 @@ export function createInterfaceProvider(): IInterfaceProvider {
         cache.set('factoryBurnMintERC20', FactoryBurnMintERC20__factory.createInterface());
       }
       return cache.get('factoryBurnMintERC20')!;
+    },
+
+    getRegistryModuleOwnerCustomInterface(): ethers.Interface {
+      if (!cache.has('registryModuleOwnerCustom')) {
+        cache.set(
+          'registryModuleOwnerCustom',
+          RegistryModuleOwnerCustom__factory.createInterface(),
+        );
+      }
+      return cache.get('registryModuleOwnerCustom')!;
+    },
+
+    getTokenAdminRegistryInterface(): ethers.Interface {
+      if (!cache.has('tokenAdminRegistry')) {
+        cache.set('tokenAdminRegistry', TokenAdminRegistry__factory.createInterface());
+      }
+      return cache.get('tokenAdminRegistry')!;
     },
   };
 }

@@ -83,4 +83,30 @@ export interface IInterfaceProvider {
    * - grantMintAndBurn, revokeMintRole, revokeBurnRole (role management generator)
    */
   getFactoryBurnMintERC20Interface(): ethers.Interface;
+
+  /**
+   * Gets the RegistryModuleOwnerCustom contract interface.
+   *
+   * @returns ethers.Interface for RegistryModuleOwnerCustom contract
+   *
+   * @remarks
+   * Used by generators for:
+   * - registerAdminViaGetCCIPAdmin (register admin generator)
+   * - registerAdminViaOwner (register admin generator)
+   * - registerAccessControlDefaultAdmin (register admin generator)
+   */
+  getRegistryModuleOwnerCustomInterface(): ethers.Interface;
+
+  /**
+   * Gets the TokenAdminRegistry contract interface.
+   *
+   * @returns ethers.Interface for TokenAdminRegistry contract
+   *
+   * @remarks
+   * Used by generators for:
+   * - setPool (token admin registry generator)
+   * - transferAdminRole (token admin registry generator)
+   * - acceptAdminRole (token admin registry generator)
+   */
+  getTokenAdminRegistryInterface(): ethers.Interface;
 }

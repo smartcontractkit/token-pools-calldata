@@ -43,6 +43,11 @@ import {
   createAcceptOwnershipGenerator,
   AcceptOwnershipGenerator,
 } from '../generators/acceptOwnership';
+import { createRegisterAdminGenerator, RegisterAdminGenerator } from '../generators/registerAdmin';
+import {
+  createTokenAdminRegistryGenerator,
+  TokenAdminRegistryGenerator,
+} from '../generators/tokenAdminRegistry';
 
 // Formatter factories
 import {
@@ -71,6 +76,14 @@ import {
   createAcceptOwnershipFormatter,
   AcceptOwnershipFormatter,
 } from '../formatters/acceptOwnershipFormatter';
+import {
+  createRegisterAdminFormatter,
+  RegisterAdminFormatter,
+} from '../formatters/registerAdminFormatter';
+import {
+  createTokenAdminRegistryFormatter,
+  TokenAdminRegistryFormatter,
+} from '../formatters/tokenAdminRegistryFormatter';
 
 // Services
 import {
@@ -116,6 +129,8 @@ export interface ServiceContainer {
   allowListUpdatesGenerator: AllowListUpdatesGenerator;
   rateLimiterConfigGenerator: RateLimiterConfigGenerator;
   acceptOwnershipGenerator: AcceptOwnershipGenerator;
+  registerAdminGenerator: RegisterAdminGenerator;
+  tokenAdminRegistryGenerator: TokenAdminRegistryGenerator;
 
   // Formatters
   chainUpdateFormatter: ChainUpdateFormatter;
@@ -126,6 +141,8 @@ export interface ServiceContainer {
   allowListFormatter: AllowListFormatter;
   rateLimiterFormatter: RateLimiterFormatter;
   acceptOwnershipFormatter: AcceptOwnershipFormatter;
+  registerAdminFormatter: RegisterAdminFormatter;
+  tokenAdminRegistryFormatter: TokenAdminRegistryFormatter;
 
   // Services
   transactionService: TransactionService;
@@ -184,6 +201,8 @@ export function createServiceContainer(): ServiceContainer {
   const allowListUpdatesGenerator = createAllowListUpdatesGenerator(logger, interfaceProvider);
   const rateLimiterConfigGenerator = createRateLimiterConfigGenerator(logger, interfaceProvider);
   const acceptOwnershipGenerator = createAcceptOwnershipGenerator(logger);
+  const registerAdminGenerator = createRegisterAdminGenerator(logger, interfaceProvider);
+  const tokenAdminRegistryGenerator = createTokenAdminRegistryGenerator(logger, interfaceProvider);
 
   // Step 3: Create formatters
   const chainUpdateFormatter = createChainUpdateFormatter(interfaceProvider);
@@ -194,6 +213,8 @@ export function createServiceContainer(): ServiceContainer {
   const allowListFormatter = createAllowListFormatter(interfaceProvider);
   const rateLimiterFormatter = createRateLimiterFormatter(interfaceProvider);
   const acceptOwnershipFormatter = createAcceptOwnershipFormatter();
+  const registerAdminFormatter = createRegisterAdminFormatter(interfaceProvider);
+  const tokenAdminRegistryFormatter = createTokenAdminRegistryFormatter(interfaceProvider);
 
   // Step 4: Create TransactionService with all dependencies
   const transactionServiceDeps: TransactionServiceDependencies = {
@@ -205,6 +226,8 @@ export function createServiceContainer(): ServiceContainer {
     allowListUpdatesGenerator,
     rateLimiterConfigGenerator,
     acceptOwnershipGenerator,
+    registerAdminGenerator,
+    tokenAdminRegistryGenerator,
     chainUpdateFormatter,
     tokenDeploymentFormatter,
     poolDeploymentFormatter,
@@ -213,6 +236,8 @@ export function createServiceContainer(): ServiceContainer {
     allowListFormatter,
     rateLimiterFormatter,
     acceptOwnershipFormatter,
+    registerAdminFormatter,
+    tokenAdminRegistryFormatter,
   };
   const transactionService = createTransactionService(transactionServiceDeps);
 
@@ -232,6 +257,8 @@ export function createServiceContainer(): ServiceContainer {
     allowListUpdatesGenerator,
     rateLimiterConfigGenerator,
     acceptOwnershipGenerator,
+    registerAdminGenerator,
+    tokenAdminRegistryGenerator,
 
     // Formatters
     chainUpdateFormatter,
@@ -242,6 +269,8 @@ export function createServiceContainer(): ServiceContainer {
     allowListFormatter,
     rateLimiterFormatter,
     acceptOwnershipFormatter,
+    registerAdminFormatter,
+    tokenAdminRegistryFormatter,
 
     // Services
     transactionService,

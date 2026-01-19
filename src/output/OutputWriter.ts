@@ -7,7 +7,8 @@
  *
  * Features:
  * - Calldata writer for raw hex strings
- * - JSON writer with Prettier formatting
+ * - JSON writer with Prettier formatting (for Safe Transaction Builder)
+ * - Transaction JSON writer for wallet-agnostic output (to, value, data)
  * - Automatic file path resolution and directory creation
  * - Consistent logging of file writes
  *
@@ -329,6 +330,92 @@ export class JsonWriter extends OutputWriter {
 }
 
 /**
+ * Transaction JSON output writer.
+ *
+ * Writes raw transaction data as JSON with to, value, and data fields.
+ * This format is wallet-agnostic and can be used with any SDK or CLI
+ * (e.g., Avocado, ethers.js, viem, etc.).
+ *
+ * @remarks
+ * Use Cases:
+ * - Integration with third-party wallet SDKs
+ * - Manual transaction submission via any tool
+ * - Programmatic transaction building
+ * - Copy/paste into wallet interfaces
+ *
+ * Output Format:
+ * Single transaction:
+ * ```json
+ * {
+ *   "to": "0x...",
+ *   "value": "0",
+ *   "data": "0x..."
+ * }
+ * ```
+ *
+ * Multiple transactions:
+ * ```json
+ * [
+ *   { "to": "0x...", "value": "0", "data": "0x..." },
+ *   { "to": "0x...", "value": "0", "data": "0x..." }
+ * ]
+ * ```
+ *
+ * @example
+ * ```typescript
+ * const writer = new TransactionJsonWriter();
+ * const txJson = JSON.stringify({
+ *   to: '0x1234...',
+ *   value: '0',
+ *   data: '0xabcdef...'
+ * });
+ *
+ * // Write to console
+ * await writer.write(txJson, { type: 'console' });
+ *
+ * // Write to file
+ * await writer.write(txJson, { type: 'file', path: 'output/tx.json' });
+ * ```
+ *
+ * @public
+ */
+export class TransactionJsonWriter extends OutputWriter {
+  /**
+   * Write transaction JSON to console or file.
+   *
+   * @param content - JSON string containing transaction data
+   * @param destination - Where to write the output
+   */
+  async write(content: string, destination: OutputDestination): Promise<void> {
+    const formatted = await this.format(content);
+
+    if (destination.type === 'console') {
+      this.writeToConsole(formatted);
+    } else {
+      await this.writeToFile(formatted, destination.path);
+    }
+  }
+
+  /**
+   * Format transaction JSON using Prettier.
+   *
+   * @param content - JSON string to format
+   * @returns Formatted JSON string
+   * @throws {SyntaxError} If JSON is malformed
+   *
+   * @protected
+   */
+  protected async format(content: string): Promise<string> {
+    const obj: unknown = JSON.parse(content);
+    const config = await prettier.resolveConfig(process.cwd());
+    return prettier.format(JSON.stringify(obj), {
+      ...config,
+      parser: 'json',
+    });
+  }
+}
+
+/**
  * Factory for creating output writers.
  *
  * Provides factory methods for instantiating appropriate writer types.
@@ -345,10 +432,12 @@ export class JsonWriter extends OutputWriter {
  * // Create writers using factory
  * const calldataWriter = OutputWriterFactory.createCalldataWriter();
  * const jsonWriter = OutputWriterFactory.createJsonWriter();
+ * const txJsonWriter = OutputWriterFactory.createTransactionJsonWriter();
  *
  * // Use writers
  * await calldataWriter.write('0x1234...', { type: 'console' });
  * await jsonWriter.write('{"key":"value"}', { type: 'console' });
+ * await txJsonWriter.write('{"to":"0x...","value":"0","data":"0x..."}', { type: 'console' });
  * ```
  *
  * @public
@@ -364,11 +453,24 @@ export class OutputWriterFactory {
   }
 
   /**
-   * Create a JSON writer instance.
+   * Create a JSON writer instance (for Safe Transaction Builder JSON).
    *
    * @returns New JsonWriter instance
    */
   static createJsonWriter(): JsonWriter {
     return new JsonWriter();
+  }
+
+  /**
+   * Create a transaction JSON writer instance.
+   *
+   * @returns New TransactionJsonWriter instance
+   *
+   * @remarks
+   * Use this writer for wallet-agnostic transaction JSON output
+   * containing to, value, and data fields.
+   */
+  static createTransactionJsonWriter(): TransactionJsonWriter {
+    return new TransactionJsonWriter();
   }
 }

@@ -25,6 +25,7 @@
  * Output Formats:
  * - **Calldata** (default): Raw hex-encoded function calls for direct execution
  * - **Safe JSON**: Formatted JSON for Safe Transaction Builder UI
+ * - **JSON**: Wallet-agnostic transaction JSON with to, value, data fields
  *
  * Common Usage Pattern:
  * ```bash
@@ -55,6 +56,8 @@ import {
   validateAllowListOptions,
   validateRateLimiterOptions,
   validateGrantRolesOptions,
+  validateRegisterAdminOptions,
+  validateTokenAdminRegistryOptions,
 } from './validators';
 
 // Get service container with all dependencies wired up
@@ -83,8 +86,11 @@ interface BaseOptions {
   /** Path to output file (optional, defaults to stdout) */
   output?: string;
 
-  /** Output format: 'calldata' (default) or 'safe-json' */
-  format?: typeof OUTPUT_FORMAT.CALLDATA | typeof OUTPUT_FORMAT.SAFE_JSON;
+  /** Output format: 'calldata' (default), 'safe-json', or 'json' */
+  format?:
+    | typeof OUTPUT_FORMAT.CALLDATA
+    | typeof OUTPUT_FORMAT.SAFE_JSON
+    | typeof OUTPUT_FORMAT.JSON;
 
   /** Safe multisig contract address (required for safe-json format) */
   safe?: string;
@@ -243,8 +249,92 @@ interface AcceptOwnershipOptions {
   /** Path to output file (optional, defaults to stdout) */
   output?: string;
 
-  /** Output format: 'calldata' (default) or 'safe-json' */
-  format?: typeof OUTPUT_FORMAT.CALLDATA | typeof OUTPUT_FORMAT.SAFE_JSON;
+  /** Output format: 'calldata' (default), 'safe-json', or 'json' */
+  format?:
+    | typeof OUTPUT_FORMAT.CALLDATA
+    | typeof OUTPUT_FORMAT.SAFE_JSON
+    | typeof OUTPUT_FORMAT.JSON;
+
+  /** Safe multisig contract address (required for safe-json format) */
+  safe?: string;
+
+  /** Safe owner address (required for safe-json format) */
+  owner?: string;
+
+  /** Chain ID where transaction will be executed (required for safe-json format) */
+  chainId?: string;
+}
+
+/**
+ * Options for register admin command (`generate-register-admin`).
+ *
+ * @remarks
+ * Registers as the CCIP admin for a token via the RegistryModuleOwnerCustom contract.
+ *
+ * @internal
+ */
+interface RegisterAdminOptions {
+  /** RegistryModuleOwnerCustom contract address */
+  module: string;
+
+  /** Token contract address */
+  token: string;
+
+  /** Registration method: 'get-ccip-admin', 'owner', or 'access-control' */
+  method: 'get-ccip-admin' | 'owner' | 'access-control';
+
+  /** Path to output file (optional, defaults to stdout) */
+  output?: string;
+
+  /** Output format: 'calldata' (default), 'safe-json', or 'json' */
+  format?:
+    | typeof OUTPUT_FORMAT.CALLDATA
+    | typeof OUTPUT_FORMAT.SAFE_JSON
+    | typeof OUTPUT_FORMAT.JSON;
+
+  /** Safe multisig contract address (required for safe-json format) */
+  safe?: string;
+
+  /** Safe owner address (required for safe-json format) */
+  owner?: string;
+
+  /** Chain ID where transaction will be executed (required for safe-json format) */
+  chainId?: string;
+}
+
+/**
+ * Options for token admin registry command (`generate-token-admin-registry`).
+ *
+ * @remarks
+ * Interacts with the TokenAdminRegistry contract for managing token pool associations
+ * and admin role transfers.
+ *
+ * @internal
+ */
+interface TokenAdminRegistryOptions {
+  /** TokenAdminRegistry contract address */
+  tokenAdminRegistry: string;
+
+  /** Token contract address */
+  token: string;
+
+  /** Method: 'set-pool', 'transfer-admin', or 'accept-admin' */
+  method: 'set-pool' | 'transfer-admin' | 'accept-admin';
+
+  /** Pool address (required for set-pool method) */
+  pool?: string;
+
+  /** New admin address (required for transfer-admin method) */
+  newAdmin?: string;
+
+  /** Path to output file (optional, defaults to stdout) */
+  output?: string;
+
+  /** Output format: 'calldata' (default), 'safe-json', or 'json' */
+  format?:
+    | typeof OUTPUT_FORMAT.CALLDATA
+    | typeof OUTPUT_FORMAT.SAFE_JSON
+    | typeof OUTPUT_FORMAT.JSON;
 
   /** Safe multisig contract address (required for safe-json format) */
   safe?: string;
@@ -621,6 +711,100 @@ async function handleAcceptOwnership(options: AcceptOwnershipOptions): Promise<v
   );
 }
 
+/**
+ * Handles the `generate-register-admin` command.
+ *
+ * Generates transaction to register as the CCIP admin for a token via the
+ * RegistryModuleOwnerCustom contract.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleRegisterAdmin(options: RegisterAdminOptions): Promise<void> {
+  validateRegisterAdminOptions(options);
+
+  // Create input JSON from command line options
+  const inputJson = JSON.stringify({
+    moduleAddress: options.module,
+    tokenAddress: options.token,
+    method: options.method,
+  });
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          moduleAddress: options.module,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateRegisterAdmin(
+    inputJson,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
+/**
+ * Handles the `generate-token-admin-registry` command.
+ *
+ * Generates transaction for TokenAdminRegistry operations: set-pool,
+ * transfer-admin, or accept-admin.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleTokenAdminRegistry(options: TokenAdminRegistryOptions): Promise<void> {
+  validateTokenAdminRegistryOptions(options);
+
+  // Create input JSON from command line options based on method
+  const inputData: Record<string, string> = {
+    registryAddress: options.tokenAdminRegistry,
+    tokenAddress: options.token,
+    method: options.method,
+  };
+
+  // Add method-specific fields
+  if (options.method === 'set-pool' && options.pool) {
+    inputData.poolAddress = options.pool;
+  }
+  if (options.method === 'transfer-admin' && options.newAdmin) {
+    inputData.newAdminAddress = options.newAdmin;
+  }
+
+  const inputJson = JSON.stringify(inputData);
+
+  const metadata =
+    options.format === OUTPUT_FORMAT.SAFE_JSON
+      ? {
+          chainId: options.chainId!,
+          safeAddress: options.safe!,
+          ownerAddress: options.owner!,
+          registryAddress: options.tokenAdminRegistry,
+        }
+      : undefined;
+
+  const { transaction, safeJson } = await transactionService.generateTokenAdminRegistry(
+    inputJson,
+    metadata,
+  );
+
+  await outputService.write(
+    options.format || OUTPUT_FORMAT.CALLDATA,
+    transaction,
+    safeJson,
+    options.output,
+  );
+}
+
 // Initialize the program
 const program = createProgram();
 
@@ -632,7 +816,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (for safe-json format)')
@@ -653,7 +837,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -675,7 +859,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -697,7 +881,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -723,7 +907,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -744,7 +928,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -765,7 +949,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -785,7 +969,7 @@ program
   .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
   .addOption(
     new Option('-f, --format <type>', 'Output format')
-      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON])
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
       .default(OUTPUT_FORMAT.CALLDATA),
   )
   .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
@@ -795,6 +979,62 @@ program
     withErrorHandling(
       handleAcceptOwnership as (options: AcceptOwnershipOptions) => Promise<void>,
       'generate-accept-ownership',
+    ),
+  );
+
+program
+  .command('generate-register-admin')
+  .description('Generate transaction to register as CCIP admin for a token')
+  .requiredOption('-m, --module <address>', 'RegistryModuleOwnerCustom contract address')
+  .requiredOption('-t, --token <address>', 'Token address')
+  .addOption(
+    new Option('--method <type>', 'Registration method')
+      .choices(['get-ccip-admin', 'owner', 'access-control'])
+      .makeOptionMandatory(true),
+  )
+  .option('-o, --output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('-f, --format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('-s, --safe <address>', 'Safe address (required for safe-json format)')
+  .option('-w, --owner <address>', 'Owner address (required for safe-json format)')
+  .option('-c, --chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleRegisterAdmin as (options: RegisterAdminOptions) => Promise<void>,
+      'generate-register-admin',
+    ),
+  );
+
+program
+  .command('generate-token-admin-registry')
+  .description(
+    'Generate transaction for TokenAdminRegistry operations (set-pool, transfer-admin, accept-admin)',
+  )
+  .requiredOption('--token-admin-registry <address>', 'TokenAdminRegistry contract address')
+  .requiredOption('--token <address>', 'Token address')
+  .addOption(
+    new Option('--method <type>', 'Method to call')
+      .choices(['set-pool', 'transfer-admin', 'accept-admin'])
+      .makeOptionMandatory(true),
+  )
+  .option('--pool <address>', 'Pool address (required for set-pool method)')
+  .option('--new-admin <address>', 'New admin address (required for transfer-admin method)')
+  .option('--output <path>', 'Path to output file (defaults to stdout)')
+  .addOption(
+    new Option('--format <type>', 'Output format')
+      .choices([OUTPUT_FORMAT.CALLDATA, OUTPUT_FORMAT.SAFE_JSON, OUTPUT_FORMAT.JSON])
+      .default(OUTPUT_FORMAT.CALLDATA),
+  )
+  .option('--safe <address>', 'Safe address (required for safe-json format)')
+  .option('--owner <address>', 'Owner address (required for safe-json format)')
+  .option('--chain-id <id>', 'Chain ID (required for safe-json format)')
+  .action(
+    withErrorHandling(
+      handleTokenAdminRegistry as (options: TokenAdminRegistryOptions) => Promise<void>,
+      'generate-token-admin-registry',
     ),
   );
 
