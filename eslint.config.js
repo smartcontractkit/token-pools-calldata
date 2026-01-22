@@ -17,6 +17,7 @@ module.exports = [
       'dist/**',
       'output/**',
       'coverage/**',
+      'tmp/**',
       '*.config.js',
       'eslint.config.js',
       'src/typechain/**',

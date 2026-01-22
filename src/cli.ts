@@ -58,7 +58,17 @@ import {
   validateGrantRolesOptions,
   validateRegisterAdminOptions,
   validateTokenAdminRegistryOptions,
+  validateCheckRolesOptions,
+  validateCheckOwnerOptions,
+  validateCheckPoolConfigOptions,
+  validateCheckTokenAdminRegistryOptions,
 } from './validators';
+import { ethers } from 'ethers';
+import logger from './utils/logger';
+import AccessControlABI from '../abis/AccessControl.json';
+import OwnableABI from '../abis/Ownable.json';
+import TokenPoolABI from '../abis/TokenPool.json';
+import TokenAdminRegistryABI from '../abis/TokenAdminRegistry.json';
 
 // Get service container with all dependencies wired up
 const container = getServiceContainer();
@@ -344,6 +354,83 @@ interface TokenAdminRegistryOptions {
 
   /** Chain ID where transaction will be executed (required for safe-json format) */
   chainId?: string;
+}
+
+/**
+ * Options for check-roles command (`check-roles`).
+ *
+ * @remarks
+ * Read-only command that queries MINTER_ROLE and BURNER_ROLE on a token contract.
+ * Works with BurnMintERC20 and any token implementing the same AccessControl pattern.
+ *
+ * @internal
+ */
+interface CheckRolesOptions {
+  /** RPC URL to connect to */
+  rpcUrl: string;
+
+  /** Token contract address */
+  token: string;
+
+  /** Account address to check roles for */
+  account: string;
+}
+
+/**
+ * Options for check-owner command (`check-owner`).
+ *
+ * @remarks
+ * Read-only command that queries owner() on a contract.
+ * Works with any Ownable contract (pools, tokens, etc.).
+ *
+ * @internal
+ */
+interface CheckOwnerOptions {
+  /** RPC URL to connect to */
+  rpcUrl: string;
+
+  /** Contract address to check owner for */
+  contract: string;
+}
+
+/**
+ * Options for check-pool-config command (`check-pool-config`).
+ *
+ * @remarks
+ * Read-only command that queries TokenPool configuration.
+ * Shows pool info, supported chains, and per-chain configuration.
+ *
+ * @internal
+ */
+interface CheckPoolConfigOptions {
+  /** RPC URL to connect to */
+  rpcUrl: string;
+
+  /** TokenPool contract address */
+  pool: string;
+
+  /** Optional comma-separated list of chain selectors to check */
+  chains?: string;
+}
+
+/**
+ * Options for check-token-admin-registry command (`check-token-admin-registry`).
+ *
+ * @remarks
+ * Read-only command that queries TokenAdminRegistry configuration for a token.
+ * Shows administrator, pending administrator, and linked pool.
+ *
+ * @internal
+ */
+interface CheckTokenAdminRegistryOptions {
+  /** RPC URL to connect to */
+  rpcUrl: string;
+
+  /** TokenAdminRegistry contract address */
+  tokenAdminRegistry: string;
+
+  /** Token contract address */
+  token: string;
 }
 
 /**
@@ -805,6 +892,292 @@ async function handleTokenAdminRegistry(options: TokenAdminRegistryOptions): Pro
   );
 }
 
+// Role constants for BurnMintERC20
+const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes('MINTER_ROLE'));
+const BURNER_ROLE = ethers.keccak256(ethers.toUtf8Bytes('BURNER_ROLE'));
+const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
+
+/**
+ * Handles the `check-roles` command.
+ *
+ * Queries a token contract to check if an account has MINTER_ROLE and BURNER_ROLE.
+ * This is a read-only operation that does not generate transactions.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleCheckRoles(options: CheckRolesOptions): Promise<void> {
+  validateCheckRolesOptions(options);
+
+  const provider = new ethers.JsonRpcProvider(options.rpcUrl);
+  const tokenContract = new ethers.Contract(options.token, AccessControlABI, provider);
+
+  logger.info('Checking roles on token contract', {
+    token: options.token,
+    account: options.account,
+  });
+
+  const hasRole = tokenContract.getFunction('hasRole');
+  const [hasMinterRole, hasBurnerRole, hasAdminRole]: [boolean, boolean, boolean] =
+    (await Promise.all([
+      hasRole(MINTER_ROLE, options.account),
+      hasRole(BURNER_ROLE, options.account),
+      hasRole(DEFAULT_ADMIN_ROLE, options.account),
+    ])) as [boolean, boolean, boolean];
+
+  logger.info('Role check results', {
+    token: options.token,
+    account: options.account,
+    MINTER_ROLE: hasMinterRole,
+    BURNER_ROLE: hasBurnerRole,
+    DEFAULT_ADMIN_ROLE: hasAdminRole,
+  });
+
+  if (hasMinterRole && hasBurnerRole) {
+    logger.info('Account has both MINTER and BURNER roles');
+  } else {
+    const missing: string[] = [];
+    if (!hasMinterRole) missing.push('MINTER_ROLE');
+    if (!hasBurnerRole) missing.push('BURNER_ROLE');
+    logger.info('Account is missing roles', { missing });
+  }
+}
+
+/**
+ * Handles the `check-owner` command.
+ *
+ * Queries a contract to get its current owner.
+ * This is a read-only operation that does not generate transactions.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleCheckOwner(options: CheckOwnerOptions): Promise<void> {
+  validateCheckOwnerOptions(options);
+
+  const provider = new ethers.JsonRpcProvider(options.rpcUrl);
+  const contract = new ethers.Contract(options.contract, OwnableABI, provider);
+
+  logger.info('Checking owner of contract', {
+    contract: options.contract,
+  });
+
+  const ownerFn = contract.getFunction('owner');
+  const owner = (await ownerFn()) as string;
+
+  logger.info('Owner check result', {
+    contract: options.contract,
+    owner: owner,
+  });
+}
+
+/**
+ * Rate limiter state structure from TokenPool.
+ * @internal
+ */
+interface RateLimiterState {
+  tokens: bigint;
+  lastUpdated: number;
+  isEnabled: boolean;
+  capacity: bigint;
+  rate: bigint;
+}
+
+/**
+ * Handles the `check-pool-config` command.
+ *
+ * Queries a TokenPool contract to get its full configuration including
+ * basic pool info and per-chain configuration.
+ * This is a read-only operation that does not generate transactions.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleCheckPoolConfig(options: CheckPoolConfigOptions): Promise<void> {
+  validateCheckPoolConfigOptions(options);
+
+  const provider = new ethers.JsonRpcProvider(options.rpcUrl);
+  const poolContract = new ethers.Contract(options.pool, TokenPoolABI, provider);
+
+  logger.info('Checking pool configuration', { pool: options.pool });
+
+  // Get basic pool info
+  const [
+    token,
+    decimals,
+    owner,
+    router,
+    rmnProxy,
+    rateLimitAdmin,
+    typeAndVersion,
+    allowListEnabled,
+  ] = (await Promise.all([
+    poolContract.getFunction('getToken')(),
+    poolContract.getFunction('getTokenDecimals')(),
+    poolContract.getFunction('owner')(),
+    poolContract.getFunction('getRouter')(),
+    poolContract.getFunction('getRmnProxy')(),
+    poolContract.getFunction('getRateLimitAdmin')(),
+    poolContract.getFunction('typeAndVersion')(),
+    poolContract.getFunction('getAllowListEnabled')(),
+  ])) as [string, number, string, string, string, string, string, boolean];
+
+  logger.info('Pool basic info', {
+    pool: options.pool,
+    token,
+    decimals,
+    owner,
+    router,
+    rmnProxy,
+    rateLimitAdmin,
+    typeAndVersion,
+    allowListEnabled,
+  });
+
+  // Get allow list if enabled
+  if (allowListEnabled) {
+    const allowList = (await poolContract.getFunction('getAllowList')()) as string[];
+    logger.info('Allow list', { count: allowList.length, addresses: allowList });
+  }
+
+  // Get supported chains
+  let chainSelectors: bigint[];
+  if (options.chains) {
+    // Use provided chain selectors
+    chainSelectors = options.chains.split(',').map((s) => BigInt(s.trim()));
+    logger.info('Checking specified chains', { count: chainSelectors.length });
+  } else {
+    // Get all supported chains
+    chainSelectors = (await poolContract.getFunction('getSupportedChains')()) as bigint[];
+    logger.info('Supported chains', { count: chainSelectors.length });
+  }
+
+  if (chainSelectors.length === 0) {
+    logger.info('No remote chains configured');
+    return;
+  }
+
+  // Get configuration for each chain
+  for (const chainSelector of chainSelectors) {
+    const chainSelectorStr = chainSelector.toString();
+
+    try {
+      // Check if chain is supported (in case user provided specific selectors)
+      const isSupported = (await poolContract.getFunction('isSupportedChain')(
+        chainSelector,
+      )) as boolean;
+
+      if (!isSupported) {
+        logger.info('Chain not supported', { chainSelector: chainSelectorStr });
+        continue;
+      }
+
+      // Get chain-specific configuration
+      const [remotePools, remoteToken, outboundState, inboundState] = (await Promise.all([
+        poolContract.getFunction('getRemotePools')(chainSelector),
+        poolContract.getFunction('getRemoteToken')(chainSelector),
+        poolContract.getFunction('getCurrentOutboundRateLimiterState')(chainSelector),
+        poolContract.getFunction('getCurrentInboundRateLimiterState')(chainSelector),
+      ])) as [string[], string, RateLimiterState, RateLimiterState];
+
+      logger.info(`Chain ${chainSelectorStr} configuration`, {
+        chainSelector: chainSelectorStr,
+        remotePools: remotePools,
+        remoteToken: remoteToken,
+        outboundRateLimiter: {
+          isEnabled: outboundState.isEnabled,
+          capacity: outboundState.capacity.toString(),
+          rate: outboundState.rate.toString(),
+          currentTokens: outboundState.tokens.toString(),
+          lastUpdated: outboundState.lastUpdated,
+        },
+        inboundRateLimiter: {
+          isEnabled: inboundState.isEnabled,
+          capacity: inboundState.capacity.toString(),
+          rate: inboundState.rate.toString(),
+          currentTokens: inboundState.tokens.toString(),
+          lastUpdated: inboundState.lastUpdated,
+        },
+      });
+    } catch (error) {
+      logger.error(`Failed to get config for chain ${chainSelectorStr}`, {
+        chainSelector: chainSelectorStr,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  logger.info('Pool configuration check complete', {
+    pool: options.pool,
+    chainsChecked: chainSelectors.length,
+  });
+}
+
+/**
+ * Token config structure from TokenAdminRegistry.
+ * @internal
+ */
+interface TokenConfig {
+  administrator: string;
+  pendingAdministrator: string;
+  tokenPool: string;
+}
+
+/**
+ * Handles the `check-token-admin-registry` command.
+ *
+ * Queries the TokenAdminRegistry contract to get configuration for a token.
+ * Shows administrator, pending administrator, and linked pool.
+ * This is a read-only operation that does not generate transactions.
+ *
+ * @param options - Command options from Commander.js
+ * @internal
+ */
+async function handleCheckTokenAdminRegistry(
+  options: CheckTokenAdminRegistryOptions,
+): Promise<void> {
+  validateCheckTokenAdminRegistryOptions(options);
+
+  const provider = new ethers.JsonRpcProvider(options.rpcUrl);
+  const registryContract = new ethers.Contract(
+    options.tokenAdminRegistry,
+    TokenAdminRegistryABI,
+    provider,
+  );
+
+  logger.info('Checking TokenAdminRegistry configuration', {
+    registry: options.tokenAdminRegistry,
+    token: options.token,
+  });
+
+  // Get token configuration
+  const tokenConfig = (await registryContract.getFunction('getTokenConfig')(
+    options.token,
+  )) as TokenConfig;
+
+  const isAdminZero = tokenConfig.administrator === ethers.ZeroAddress;
+  const isPendingAdminZero = tokenConfig.pendingAdministrator === ethers.ZeroAddress;
+  const isPoolZero = tokenConfig.tokenPool === ethers.ZeroAddress;
+
+  logger.info('TokenAdminRegistry configuration', {
+    token: options.token,
+    administrator: isAdminZero ? '(not set)' : tokenConfig.administrator,
+    pendingAdministrator: isPendingAdminZero ? '(none)' : tokenConfig.pendingAdministrator,
+    tokenPool: isPoolZero ? '(not set)' : tokenConfig.tokenPool,
+  });
+
+  // Provide status summary
+  if (isAdminZero) {
+    logger.info('Token is NOT registered in TokenAdminRegistry - no CCIP admin assigned');
+  } else if (!isPendingAdminZero) {
+    logger.info('Admin transfer is in progress - pending admin must call acceptAdminRole()');
+  } else if (isPoolZero) {
+    logger.info('Token has admin but NO pool linked - call setPool() to link a pool');
+  } else {
+    logger.info('Token is fully configured with admin and pool');
+  }
+}
+
 // Initialize the program
 const program = createProgram();
 
@@ -1035,6 +1408,64 @@ program
     withErrorHandling(
       handleTokenAdminRegistry as (options: TokenAdminRegistryOptions) => Promise<void>,
       'generate-token-admin-registry',
+    ),
+  );
+
+program
+  .command('check-roles')
+  .description(
+    'Check if an account has MINTER_ROLE and BURNER_ROLE on a token (BurnMintERC20 or compatible)',
+  )
+  .requiredOption('--rpc-url <url>', 'RPC URL to connect to')
+  .requiredOption('--token <address>', 'Token contract address')
+  .requiredOption('--account <address>', 'Account address to check roles for')
+  .action(
+    withErrorHandling(
+      handleCheckRoles as (options: CheckRolesOptions) => Promise<void>,
+      'check-roles',
+    ),
+  );
+
+program
+  .command('check-owner')
+  .description('Check the owner of a contract (TokenPool, token, or any Ownable contract)')
+  .requiredOption('--rpc-url <url>', 'RPC URL to connect to')
+  .requiredOption('--contract <address>', 'Contract address to check owner for')
+  .action(
+    withErrorHandling(
+      handleCheckOwner as (options: CheckOwnerOptions) => Promise<void>,
+      'check-owner',
+    ),
+  );
+
+program
+  .command('check-pool-config')
+  .description('Check TokenPool configuration including supported chains and rate limiters')
+  .requiredOption('--rpc-url <url>', 'RPC URL to connect to')
+  .requiredOption('--pool <address>', 'TokenPool contract address')
+  .option(
+    '--chains <selectors>',
+    'Comma-separated chain selectors to check (if not provided, checks all supported chains)',
+  )
+  .action(
+    withErrorHandling(
+      handleCheckPoolConfig as (options: CheckPoolConfigOptions) => Promise<void>,
+      'check-pool-config',
+    ),
+  );
+
+program
+  .command('check-token-admin-registry')
+  .description(
+    'Check TokenAdminRegistry configuration for a token (administrator, pending admin, linked pool)',
+  )
+  .requiredOption('--rpc-url <url>', 'RPC URL to connect to')
+  .requiredOption('--token-admin-registry <address>', 'TokenAdminRegistry contract address')
+  .requiredOption('--token <address>', 'Token contract address')
+  .action(
+    withErrorHandling(
+      handleCheckTokenAdminRegistry as (options: CheckTokenAdminRegistryOptions) => Promise<void>,
+      'check-token-admin-registry',
     ),
   );
 

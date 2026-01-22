@@ -30,6 +30,10 @@ A CLI tool to generate calldata for CCIP TokenPool contract interactions. Suppor
   - [generate-mint](#generate-mint)
   - [generate-allow-list-updates](#generate-allow-list-updates)
   - [generate-rate-limiter-config](#generate-rate-limiter-config)
+  - [check-roles](#check-roles)
+  - [check-owner](#check-owner)
+  - [check-pool-config](#check-pool-config)
+  - [check-token-admin-registry](#check-token-admin-registry)
 - [Advanced Configuration](#advanced-configuration)
   - [Pool Types](#pool-types)
   - [Rate Limiter Configuration](#rate-limiter-configuration)
@@ -1086,6 +1090,229 @@ pnpm start generate-rate-limiter-config \
   -c 84532 \
   -o output/rate-limiter-config.json
 ```
+
+### check-roles
+
+Query a token contract to check if an account has MINTER_ROLE and BURNER_ROLE. This is a read-only command that connects to the chain via RPC.
+
+Works with BurnMintERC20 tokens and any token contract implementing the same AccessControl role pattern (roles defined as `keccak256("MINTER_ROLE")` and `keccak256("BURNER_ROLE")`).
+
+**Usage:**
+
+```bash
+pnpm start check-roles \
+  --rpc-url <rpc-url> \
+  --token <token-address> \
+  --account <account-address>
+```
+
+**Options:**
+
+- `--rpc-url <url>`: RPC endpoint URL (required)
+- `--token <address>`: Token contract address (required)
+- `--account <address>`: Address to check roles for (required)
+
+**Example:**
+
+```bash
+# Check if a pool has mint/burn roles on a token
+pnpm start check-roles \
+  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
+  --token 0x779877A7B0D9E8603169DdbD7836e478b4624789 \
+  --account 0x1234567890123456789012345678901234567890
+```
+
+**Output:**
+
+```
+Checking roles on token contract...
+Token:   0x779877A7B0D9E8603169DdbD7836e478b4624789
+Account: 0x1234567890123456789012345678901234567890
+
+Results:
+  MINTER_ROLE:        YES
+  BURNER_ROLE:        YES
+  DEFAULT_ADMIN_ROLE: NO
+
+Account has both MINTER and BURNER roles.
+```
+
+### check-owner
+
+Query a contract to get its current owner. This is a read-only command that connects to the chain via RPC.
+
+Works with any Ownable contract including TokenPools, tokens, and other contracts that implement the standard `owner()` function.
+
+**Usage:**
+
+```bash
+pnpm start check-owner \
+  --rpc-url <rpc-url> \
+  --contract <contract-address>
+```
+
+**Options:**
+
+- `--rpc-url <url>`: RPC endpoint URL (required)
+- `--contract <address>`: Contract address to check owner for (required)
+
+**Example:**
+
+```bash
+# Check the owner of a token pool
+pnpm start check-owner \
+  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
+  --contract 0xe32f76f9fbdd2951465c9368635cf2c147c73071
+```
+
+**Output:**
+
+```
+Checking owner of contract...
+Contract: 0xe32f76f9fbdd2951465c9368635cf2c147c73071
+Owner:    0x9d087fC03ae39b088326b67fA3C788236645b717
+```
+
+### check-pool-config
+
+Query a TokenPool contract to get its full configuration including basic pool info and per-chain configuration. This is a read-only command that connects to the chain via RPC.
+
+**Usage:**
+
+```bash
+pnpm start check-pool-config \
+  --rpc-url <rpc-url> \
+  --pool <pool-address> \
+  [--chains <chain-selectors>]
+```
+
+**Options:**
+
+| Option | Description | Required |
+|--------|-------------|----------|
+| `--rpc-url <url>` | RPC URL to connect to | Yes |
+| `--pool <address>` | TokenPool contract address | Yes |
+| `--chains <selectors>` | Comma-separated chain selectors to check (optional, defaults to all supported chains) | No |
+
+**Example - Check all supported chains:**
+
+```bash
+pnpm start check-pool-config \
+  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
+  --pool 0xe32f76f9fbdd2951465c9368635cf2c147c73071
+```
+
+**Example - Check specific chains:**
+
+```bash
+pnpm start check-pool-config \
+  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
+  --pool 0xe32f76f9fbdd2951465c9368635cf2c147c73071 \
+  --chains 4949039107694359620,5009297550715157269
+```
+
+**Output:**
+
+The command outputs:
+
+1. **Pool basic info**: token address, decimals, owner, router, RMN proxy, rate limit admin, type/version, allow list status
+2. **Supported chains count**: Number of configured remote chains
+3. **Per-chain configuration**: For each chain:
+   - Chain selector
+   - Remote pool addresses (raw bytes)
+   - Remote token address (raw bytes)
+   - Outbound rate limiter state (isEnabled, capacity, rate, currentTokens, lastUpdated)
+   - Inbound rate limiter state (isEnabled, capacity, rate, currentTokens, lastUpdated)
+
+```
+Pool basic info:
+  pool: 0xe32f76f9fbdd2951465c9368635cf2c147c73071
+  token: 0x7A46328746F1625Bd5B4b07129d0477fCa099127
+  decimals: 18
+  owner: 0x9d087fC03ae39b088326b67fA3C788236645b717
+  router: 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59
+  rmnProxy: 0xba3f6251de62dED61Ff98590cB2fDf6871FbB991
+  rateLimitAdmin: 0x0000000000000000000000000000000000000000
+  typeAndVersion: BurnMintTokenPool 1.6.1
+  allowListEnabled: false
+
+Supported chains: 4
+
+Chain 4949039107694359620 configuration:
+  remotePools: ["0x0000000000000000000000002d29d728c48c3f75e221d28d844e2bdfe5656bfc"]
+  remoteToken: 0x00000000000000000000000061e030a56d33e8260fdd81f03b162a79fe3449cd
+  outboundRateLimiter:
+    isEnabled: true
+    capacity: 2000000000000000000000000
+    rate: 23148148148148148148
+    currentTokens: 2000000000000000000000000
+  inboundRateLimiter:
+    isEnabled: true
+    capacity: 2000000000000000000000000
+    rate: 23148148148148148148
+    currentTokens: 2000000000000000000000000
+```
+
+### check-token-admin-registry
+
+Query the TokenAdminRegistry contract to get configuration for a token. Shows administrator, pending administrator, and linked pool. This is a read-only command that connects to the chain via RPC.
+
+**Usage:**
+
+```bash
+pnpm start check-token-admin-registry \
+  --rpc-url <rpc-url> \
+  --token-admin-registry <registry-address> \
+  --token <token-address>
+```
+
+**Options:**
+
+| Option | Description | Required |
+|--------|-------------|----------|
+| `--rpc-url <url>` | RPC URL to connect to | Yes |
+| `--token-admin-registry <address>` | TokenAdminRegistry contract address | Yes |
+| `--token <address>` | Token contract address to check | Yes |
+
+**Example:**
+
+```bash
+pnpm start check-token-admin-registry \
+  --rpc-url https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY \
+  --token-admin-registry 0x95F29FEE11c5C55d26cCcf1DB6772DE953B37B82 \
+  --token 0x7A46328746F1625Bd5B4b07129d0477fCa099127
+```
+
+**Output:**
+
+The command outputs:
+
+1. **Token**: The token address being queried
+2. **Administrator**: Current CCIP admin for the token (or "(not set)" if none)
+3. **Pending Administrator**: Address that can accept admin role (or "(none)" if no transfer in progress)
+4. **Token Pool**: The pool linked to this token in the registry (or "(not set)" if none)
+5. **Status Summary**: Human-readable explanation of the token's registration state
+
+```
+Checking TokenAdminRegistry configuration...
+  registry: 0x95F29FEE11c5C55d26cCcf1DB6772DE953B37B82
+  token: 0x7A46328746F1625Bd5B4b07129d0477fCa099127
+
+TokenAdminRegistry configuration:
+  token: 0x7A46328746F1625Bd5B4b07129d0477fCa099127
+  administrator: 0x9d087fC03ae39b088326b67fA3C788236645b717
+  pendingAdministrator: (none)
+  tokenPool: 0xe32f76f9fbDd2951465c9368635cF2c147c73071
+
+Token is fully configured with admin and pool
+```
+
+**Status Messages:**
+
+- `Token is NOT registered in TokenAdminRegistry - no CCIP admin assigned`: Token has no admin configured
+- `Admin transfer is in progress - pending admin must call acceptAdminRole()`: A new admin has been proposed
+- `Token has admin but NO pool linked - call setPool() to link a pool`: Admin is set but pool is missing
+- `Token is fully configured with admin and pool`: Everything is properly set up
 
 ## Advanced Configuration
 
