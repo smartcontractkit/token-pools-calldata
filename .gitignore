@@ -33,4 +33,6 @@ pnpm-debug.log*
 Thumbs.db 
 
 /output/
+/input/
+/tmp/
 coverage

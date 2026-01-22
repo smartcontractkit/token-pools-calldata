@@ -47,6 +47,12 @@ export interface PoolDeploymentGenerator {
    *
    * @throws {PoolDeploymentError} When validation fails or transaction generation fails
    *
+   * @remarks
+   * Note: Unlike token deployment, pool address cannot be predicted before deployment because
+   * the factory appends constructor arguments (including rmnProxy and router from its immutable
+   * variables) to the bytecode. The pool address will be available in the deployment transaction
+   * receipt's logs.
+   *
    * @see {@link poolDeploymentParamsSchema} for input JSON schema
    * @see {@link SafeTransactionDataBase} for return type structure
    */
@@ -86,6 +92,12 @@ export interface PoolDeploymentGenerator {
  * - **LockReleaseTokenPool**: For tokens without mint/burn. Tokens are locked on one chain
  *   and equivalent amounts are released on another chain.
  *
+ * Address Prediction:
+ * Unlike token deployment, the pool address cannot be predicted before deployment because
+ * the factory appends constructor arguments (including rmnProxy and router from its immutable
+ * variables) to the bytecode when computing the CREATE2 address. The pool address will be
+ * available in the deployment transaction receipt's logs.
+ *
  * @example
  * ```typescript
  * const generator = createPoolDeploymentGenerator(
@@ -98,20 +110,13 @@ export interface PoolDeploymentGenerator {
  *   token: "0x779877A7B0D9E8603169DdbD7836e478b4624789",
  *   decimals: 18,
  *   poolType: "BurnMintTokenPool",
- *   remoteTokenPools: [
- *     {
- *       remoteChainSelector: "16015286601757825753",
- *       remotePoolAddress: "0x1234567890123456789012345678901234567890",
- *       remoteTokenAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
- *       poolType: "BurnMintTokenPool"
- *     }
- *   ]
+ *   remoteTokenPools: []
  * });
  *
  * const transaction = await generator.generate(
  *   inputJson,
  *   "0x17d8a409fe2cef2d3808bcb61f14abeffc28876e", // factory
- *   "0x0000000000000000000000000000000000000000000000000000000123456789"  // salt
+ *   "0x0000000000000000000000000000000000000000000000000000000123456789" // salt
  * );
  *
  * console.log(transaction.to);     // Factory address

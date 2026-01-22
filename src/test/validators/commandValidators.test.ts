@@ -11,6 +11,10 @@ import {
   validateAllowListOptions,
   validateRateLimiterOptions,
   validateGrantRolesOptions,
+  validateCheckRolesOptions,
+  validateCheckOwnerOptions,
+  validateCheckPoolConfigOptions,
+  validateCheckTokenAdminRegistryOptions,
 } from '../../validators/commandValidators';
 import { ValidationError } from '../../validators/ValidationError';
 import { OUTPUT_FORMAT, VALIDATION_ERRORS } from '../../config';
@@ -488,5 +492,283 @@ describe('Optional Safe address validation', () => {
         owner: 'invalid-owner',
       }),
     ).toThrow(ValidationError);
+  });
+});
+
+describe('validateCheckRolesOptions', () => {
+  const validOptions = {
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/test',
+    token: VALID_ADDRESSES.token,
+    account: VALID_ADDRESSES.pool,
+  };
+
+  it('should accept valid options', () => {
+    expect(() => validateCheckRolesOptions(validOptions)).not.toThrow();
+  });
+
+  it('should throw when rpcUrl is missing', () => {
+    expect(() =>
+      validateCheckRolesOptions({
+        rpcUrl: '',
+        token: VALID_ADDRESSES.token,
+        account: VALID_ADDRESSES.pool,
+      }),
+    ).toThrow('RPC URL (--rpc-url) is required');
+  });
+
+  it('should throw for invalid token address', () => {
+    expect(() =>
+      validateCheckRolesOptions({
+        rpcUrl: 'https://example.com',
+        token: INVALID_ADDRESSES.tooShort,
+        account: VALID_ADDRESSES.pool,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw for invalid account address', () => {
+    expect(() =>
+      validateCheckRolesOptions({
+        rpcUrl: 'https://example.com',
+        token: VALID_ADDRESSES.token,
+        account: INVALID_ADDRESSES.notHex,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw when account is missing', () => {
+    expect(() =>
+      validateCheckRolesOptions({
+        rpcUrl: 'https://example.com',
+        token: VALID_ADDRESSES.token,
+        account: '',
+      }),
+    ).toThrow('Account address (--account) is required');
+  });
+
+  it('should use INVALID_TOKEN_ADDRESS error for bad token', () => {
+    try {
+      validateCheckRolesOptions({
+        rpcUrl: 'https://example.com',
+        token: 'bad',
+        account: VALID_ADDRESSES.pool,
+      });
+    } catch (error) {
+      expect((error as ValidationError).message).toBe(VALIDATION_ERRORS.INVALID_TOKEN_ADDRESS);
+    }
+  });
+});
+
+describe('validateCheckOwnerOptions', () => {
+  const validOptions = {
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/test',
+    contract: VALID_ADDRESSES.pool,
+  };
+
+  it('should accept valid options', () => {
+    expect(() => validateCheckOwnerOptions(validOptions)).not.toThrow();
+  });
+
+  it('should throw when rpcUrl is missing', () => {
+    expect(() =>
+      validateCheckOwnerOptions({
+        rpcUrl: '',
+        contract: VALID_ADDRESSES.pool,
+      }),
+    ).toThrow('RPC URL (--rpc-url) is required');
+  });
+
+  it('should throw for invalid contract address', () => {
+    expect(() =>
+      validateCheckOwnerOptions({
+        rpcUrl: 'https://example.com',
+        contract: INVALID_ADDRESSES.tooShort,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw when contract is missing', () => {
+    expect(() =>
+      validateCheckOwnerOptions({
+        rpcUrl: 'https://example.com',
+        contract: '',
+      }),
+    ).toThrow('Contract address (--contract) is required');
+  });
+});
+
+describe('validateCheckPoolConfigOptions', () => {
+  const validOptions = {
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/test',
+    pool: VALID_ADDRESSES.pool,
+  };
+
+  it('should accept valid options without chains', () => {
+    expect(() => validateCheckPoolConfigOptions(validOptions)).not.toThrow();
+  });
+
+  it('should accept valid options with single chain selector', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: '16015286601757825753',
+      }),
+    ).not.toThrow();
+  });
+
+  it('should accept valid options with multiple chain selectors', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: '16015286601757825753,4949039107694359620,5009297550715157269',
+      }),
+    ).not.toThrow();
+  });
+
+  it('should accept chain selectors with spaces', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: '16015286601757825753, 4949039107694359620, 5009297550715157269',
+      }),
+    ).not.toThrow();
+  });
+
+  it('should throw when rpcUrl is missing', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        rpcUrl: '',
+        pool: VALID_ADDRESSES.pool,
+      }),
+    ).toThrow('RPC URL (--rpc-url) is required');
+  });
+
+  it('should throw for invalid pool address', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        rpcUrl: 'https://example.com',
+        pool: INVALID_ADDRESSES.tooShort,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw for empty pool address', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        rpcUrl: 'https://example.com',
+        pool: '',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw for non-numeric chain selector', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: '16015286601757825753,invalid,5009297550715157269',
+      }),
+    ).toThrow('Invalid chain selector: invalid. Chain selectors must be numeric.');
+  });
+
+  it('should throw for chain selector with hex format', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: '0x1234',
+      }),
+    ).toThrow('Invalid chain selector: 0x1234. Chain selectors must be numeric.');
+  });
+
+  it('should throw for chain selector with letters', () => {
+    expect(() =>
+      validateCheckPoolConfigOptions({
+        ...validOptions,
+        chains: 'abc123',
+      }),
+    ).toThrow('Invalid chain selector: abc123. Chain selectors must be numeric.');
+  });
+});
+
+describe('validateCheckTokenAdminRegistryOptions', () => {
+  const validOptions = {
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/test',
+    tokenAdminRegistry: VALID_ADDRESSES.pool, // Using pool as a valid address
+    token: VALID_ADDRESSES.token,
+  };
+
+  it('should accept valid options', () => {
+    expect(() => validateCheckTokenAdminRegistryOptions(validOptions)).not.toThrow();
+  });
+
+  it('should throw when rpcUrl is missing', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: '',
+        tokenAdminRegistry: VALID_ADDRESSES.pool,
+        token: VALID_ADDRESSES.token,
+      }),
+    ).toThrow('RPC URL (--rpc-url) is required');
+  });
+
+  it('should throw when tokenAdminRegistry is missing', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: '',
+        token: VALID_ADDRESSES.token,
+      }),
+    ).toThrow('TokenAdminRegistry address (--token-admin-registry) is required');
+  });
+
+  it('should throw for invalid tokenAdminRegistry address', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: INVALID_ADDRESSES.tooShort,
+        token: VALID_ADDRESSES.token,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw for invalid token address', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: VALID_ADDRESSES.pool,
+        token: INVALID_ADDRESSES.notHex,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should throw when token is missing', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: VALID_ADDRESSES.pool,
+        token: '',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('should use INVALID_TOKEN_ADDRESS error for bad token', () => {
+    try {
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: VALID_ADDRESSES.pool,
+        token: 'bad',
+      });
+    } catch (error) {
+      expect((error as ValidationError).message).toBe(VALIDATION_ERRORS.INVALID_TOKEN_ADDRESS);
+    }
+  });
+
+  it('should accept different valid address formats', () => {
+    expect(() =>
+      validateCheckTokenAdminRegistryOptions({
+        rpcUrl: 'https://example.com',
+        tokenAdminRegistry: VALID_ADDRESSES.safe,
+        token: VALID_ADDRESSES.owner,
+      }),
+    ).not.toThrow();
   });
 });

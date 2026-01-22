@@ -513,3 +513,222 @@ export function validateTokenAdminRegistryOptions(options: TokenAdminRegistryOpt
   validateOptionalSafeParams(options);
   validateSafeJsonFormat(options);
 }
+
+/**
+ * Check roles command options.
+ *
+ * @internal
+ */
+interface CheckRolesOptions {
+  /** RPC URL to connect to (required) */
+  rpcUrl: string;
+
+  /** Token contract address (required) */
+  token: string;
+
+  /** Account address to check roles for (required) */
+  account: string;
+}
+
+/**
+ * Validates check-roles command options.
+ *
+ * Validates all parameters for the `check-roles` CLI command.
+ *
+ * @param options - Check roles command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required RPC URL is provided
+ * 2. Validate required token address format
+ * 3. Validate required account address format
+ *
+ * @example
+ * ```typescript
+ * validateCheckRolesOptions({
+ *   rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/...',
+ *   token: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+ *   account: '0x1234567890123456789012345678901234567890'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateCheckRolesOptions(options: CheckRolesOptions): void {
+  if (!options.rpcUrl) {
+    throw new Error('RPC URL (--rpc-url) is required');
+  }
+  validateTokenAddress(options.token);
+  validateOptionalAddress(options.account, 'account address');
+  if (!options.account) {
+    throw new Error('Account address (--account) is required');
+  }
+}
+
+/**
+ * Check owner command options.
+ *
+ * @internal
+ */
+interface CheckOwnerOptions {
+  /** RPC URL to connect to (required) */
+  rpcUrl: string;
+
+  /** Contract address to check owner for (required) */
+  contract: string;
+}
+
+/**
+ * Validates check-owner command options.
+ *
+ * Validates all parameters for the `check-owner` CLI command.
+ *
+ * @param options - Check owner command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required RPC URL is provided
+ * 2. Validate required contract address format
+ *
+ * @example
+ * ```typescript
+ * validateCheckOwnerOptions({
+ *   rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/...',
+ *   contract: '0x1234567890123456789012345678901234567890'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateCheckOwnerOptions(options: CheckOwnerOptions): void {
+  if (!options.rpcUrl) {
+    throw new Error('RPC URL (--rpc-url) is required');
+  }
+  validateOptionalAddress(options.contract, 'contract address');
+  if (!options.contract) {
+    throw new Error('Contract address (--contract) is required');
+  }
+}
+
+/**
+ * Check pool config command options.
+ *
+ * @internal
+ */
+interface CheckPoolConfigOptions {
+  /** RPC URL to connect to (required) */
+  rpcUrl: string;
+
+  /** TokenPool contract address (required) */
+  pool: string;
+
+  /** Optional comma-separated list of chain selectors to check */
+  chains?: string;
+}
+
+/**
+ * Validates check-pool-config command options.
+ *
+ * Validates all parameters for the `check-pool-config` CLI command.
+ *
+ * @param options - Check pool config command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required RPC URL is provided
+ * 2. Validate required pool address format
+ * 3. Validate optional chain selectors format (comma-separated numbers)
+ *
+ * @example
+ * ```typescript
+ * validateCheckPoolConfigOptions({
+ *   rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/...',
+ *   pool: '0x1234567890123456789012345678901234567890'
+ * });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // With specific chain selectors
+ * validateCheckPoolConfigOptions({
+ *   rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/...',
+ *   pool: '0x1234567890123456789012345678901234567890',
+ *   chains: '16015286601757825753,4949039107694359620'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateCheckPoolConfigOptions(options: CheckPoolConfigOptions): void {
+  if (!options.rpcUrl) {
+    throw new Error('RPC URL (--rpc-url) is required');
+  }
+  validatePoolAddress(options.pool);
+
+  // Validate chain selectors format if provided
+  if (options.chains) {
+    const selectors = options.chains.split(',').map((s) => s.trim());
+    for (const selector of selectors) {
+      if (!/^\d+$/.test(selector)) {
+        throw new Error(`Invalid chain selector: ${selector}. Chain selectors must be numeric.`);
+      }
+    }
+  }
+}
+
+/**
+ * Check token admin registry command options.
+ *
+ * @internal
+ */
+interface CheckTokenAdminRegistryOptions {
+  /** RPC URL to connect to (required) */
+  rpcUrl: string;
+
+  /** TokenAdminRegistry contract address (required) */
+  tokenAdminRegistry: string;
+
+  /** Token contract address (required) */
+  token: string;
+}
+
+/**
+ * Validates check-token-admin-registry command options.
+ *
+ * Validates all parameters for the `check-token-admin-registry` CLI command.
+ *
+ * @param options - Check token admin registry command options
+ * @throws {ValidationError} If any validation fails
+ *
+ * @remarks
+ * Validation Steps:
+ * 1. Validate required RPC URL is provided
+ * 2. Validate required TokenAdminRegistry address format
+ * 3. Validate required token address format
+ *
+ * @example
+ * ```typescript
+ * validateCheckTokenAdminRegistryOptions({
+ *   rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/...',
+ *   tokenAdminRegistry: '0x95F29FEE11c5C55d26cCcf1DB6772DE953B37B82',
+ *   token: '0x779877A7B0D9E8603169DdbD7836e478b4624789'
+ * });
+ * ```
+ *
+ * @public
+ */
+export function validateCheckTokenAdminRegistryOptions(
+  options: CheckTokenAdminRegistryOptions,
+): void {
+  if (!options.rpcUrl) {
+    throw new Error('RPC URL (--rpc-url) is required');
+  }
+  validateOptionalAddress(options.tokenAdminRegistry, 'token admin registry address');
+  if (!options.tokenAdminRegistry) {
+    throw new Error('TokenAdminRegistry address (--token-admin-registry) is required');
+  }
+  validateTokenAddress(options.token);
+}

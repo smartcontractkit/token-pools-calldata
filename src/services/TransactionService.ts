@@ -206,8 +206,9 @@ export class TransactionService {
    * @returns Object containing raw transaction and optional Safe JSON
    *
    * @remarks
-   * The generator leaves `transaction.to` empty; the formatter fills it with `tokenPoolAddress`.
-   * This allows the same generated transaction to be used with different pools.
+   * The generator produces a transaction without a `to` field. This method sets `transaction.to`
+   * to `tokenPoolAddress` before returning, ensuring the transaction is ready to use with any
+   * output format (calldata, json, or safe-json).
    *
    * @example
    * ```typescript
@@ -245,6 +246,10 @@ export class TransactionService {
     safeJson: SafeTransactionBuilderJSON | null;
   }> {
     const transaction = await this.deps.chainUpdateGenerator.generate(inputJson);
+
+    // Always set the target address on the transaction (generator leaves it empty)
+    transaction.to = tokenPoolAddress;
+
     const safeJson = metadata
       ? this.deps.chainUpdateFormatter.format(transaction, { ...metadata, tokenPoolAddress })
       : null;
